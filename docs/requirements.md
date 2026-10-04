@@ -133,11 +133,10 @@ Provide manual command-line execution for local targets without authentication, 
 - The tool is for local Git repositories or plain folders; hosting-platform integration and authentication are not part of version 1.
 - The source inputs are limited to Python files, `requirements.txt`, `pyproject.toml`, `.env.example`, YAML/JSON configuration files, and the existing root README. Commit history, CI files, and tests are excluded.
 - Generated outputs are the root `README.md` and `docs/api.md`; both are Markdown.
-- Project implementation follows the repository rule to use Python 3.11+ and pytest. Whether the tool's supported runtime is exactly Python 3.11+ is `Not Found`.
+- The tool supports Python 3.11 and later (`requires-python = ">=3.11"`).
+- Runtime dependencies use minimum-version constraints only: PyYAML `>=6.0` and packaging `>=23.0`, with no upper pins. The development dependency is pytest `>=8.0`.
 - No exact CLI command name or invocation syntax has been specified beyond the `--yes` flag.
 
 ## Open Questions
 
 - Exact CLI command name and invocation syntax, other than the `--yes` flag: `Not Found`.
-- Exact supported Python runtime versions for the tool itself: `Not Found`.
-- Supported/pinned versions and update policy for PyYAML and `packaging`: `Not Found` (deferred to implementation planning).

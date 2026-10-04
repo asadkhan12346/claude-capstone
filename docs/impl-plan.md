@@ -4,11 +4,23 @@
 **Basis:** Approved requirements, approved Option A architecture, and accepted design-review findings  
 **Estimate note:** Estimates are engineering effort, excluding human approval wait time.
 
+## Current Execution Status (2026-10-04)
+
+| Category | Status |
+| --- | --- |
+| Tasks done | T-01: runtime/dependency policy recorded and metadata/tests added. |
+| Tasks remaining | T-02 through T-12. |
+| Tasks now unblocked | T-02; its T-01 dependency is complete. |
+| Blocked tasks | T-03 through T-12 remain transitively blocked by T-02. |
+| Failing tests | None; all 5 T-01 tests pass. |
+
+**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest -q` passed (5 tests); `pip check` reported no broken requirements. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available. The earlier no-tests-collected result predates these tests.
+
 ## Dependency-Ordered Tasks
 
 | ID | Title | Description | Files touched | Dependencies | Priority | Estimate | Requirement IDs | Copilot feature |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| T-01 | Resolve runtime and dependency policy | Confirm the tool's supported Python range and dependency constraints/update policy; synchronize any resulting requirement decision before packaging. | `docs/requirements.md`, `pyproject.toml` | None | P0; blocked | 0.5 day | NFR-02, NFR-03 | requirements-analyst agent + requirements prompt |
+| T-01 | Resolve runtime and dependency policy | Record the confirmed Python range and minimum-only dependencies in requirements and project metadata; add metadata tests. | `docs/requirements.md`, `pyproject.toml`, `tests/test_project_metadata.py` | None | P0; Done | 0.5 day | NFR-02, NFR-03 | requirements-analyst agent + requirements prompt |
 | T-02 | Bootstrap package and CLI | Add the installable package, `argparse` entry point, target path validation, `--yes` parsing, and help/usage behavior. | `pyproject.toml`, `src/doc_sync/__init__.py`, `src/doc_sync/__main__.py`, `src/doc_sync/cli.py`, `tests/test_cli.py` | T-01 | P1 | 0.5 day | FR-01, FR-07, NFR-04 | implementer agent + post-edit hook |
 | T-03 | Implement repository scanner | Walk local Git repos/plain folders once; prune `.git`, tests, CI and excluded directories; reject out-of-root symlinks; enforce file-count and byte budgets. | `src/doc_sync/scanner.py`, `tests/test_scanner.py` | T-02 | P1 | 0.5 day | FR-01, FR-05, NFR-02, NFR-03 | implementer agent + post-edit hook |
 | T-04 | Add Secret Guard | Exclude sensitive filenames before opening; screen permitted content before parsing; discard matches, fail closed on uncertain sanitization, and report location only. | `src/doc_sync/security.py`, `tests/test_security.py` | T-03 | P1 | 0.5-1 day | FR-05, FR-06, NFR-01 | implementer agent + post-edit hook |
@@ -26,7 +38,7 @@
 ### T-01: Resolve runtime and dependency policy
 
 - Human decision records the supported Python runtime range and PyYAML/`packaging` version constraints and update policy; update `docs/requirements.md` and metadata consistently.
-- Tests/checks: parse the resulting package metadata; create a clean environment for the selected minimum Python version and verify dependency resolution/install succeeds.
+- Tests/checks: metadata tests pass; clean Python 3.13 environment install and dependency resolution succeed. Python 3.11 execution was not verifiable locally because that interpreter is unavailable; run the same checks on 3.11 in CI or when available.
 
 ### T-02: Bootstrap package and CLI
 
@@ -85,13 +97,12 @@
 
 ## Blocked Tasks
 
-- **T-01 is blocked** until a human confirms the tool's supported Python runtime range and PyYAML/`packaging` version constraints/update policy. These values are explicitly `Not Found` in the approved requirements; the planner must not invent them.
-- **T-02 is transitively blocked by T-01** because package metadata and dependency resolution cannot be finalized without that decision.
-- **T-03 through T-12 are transitively blocked** because their dependency chain starts at T-02. Test fixtures and detailed implementation notes may be prepared, but implementation should not begin until T-01 is resolved and this plan is approved.
+- **T-03 through T-12 are blocked** on T-02 completion, according to the dependency chain in the task table.
+- Python 3.11 runtime execution remains a verification gap for T-01, not a blocker for T-02; add a Python 3.11 CI check before claiming the supported minimum has been exercised.
 
 ## Copilot Workflow and Approval Gate
 
 - Use the requirements-analyst agent and requirements prompt for T-01's unresolved product decisions.
 - Use the implementer agent for one task at a time. The post-edit hook runs pytest and scans changed files after edits; use the verify prompt for documented acceptance checks.
 - After T-12, obtain human approval before code review, use the code-reviewer agent and code-review prompt, then run verification and create `docs/test-report.md` with the verify prompt.
-- This plan is not authorization to implement. Wait for explicit human approval of `docs/impl-plan.md` and resolution of T-01 before beginning implementation.
+- This plan is not authorization to implement. Wait for explicit human approval before beginning T-02.
