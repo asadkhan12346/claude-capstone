@@ -15,5 +15,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
+[project.scripts]
+doc-sync = "doc_sync.cli:main"
+
 [tool.setuptools]
-packages = []
+package-dir = {"" = "src"}
+packages = ["doc_sync"]

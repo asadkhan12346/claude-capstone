@@ -8,20 +8,20 @@
 
 | Category | Status |
 | --- | --- |
-| Tasks done | T-01: runtime/dependency policy recorded and metadata/tests added. |
-| Tasks remaining | T-02 through T-12. |
-| Tasks now unblocked | T-02; its T-01 dependency is complete. |
-| Blocked tasks | T-03 through T-12 remain transitively blocked by T-02. |
-| Failing tests | None; all 5 T-01 tests pass. |
+| Tasks done | T-01: runtime/dependency policy and metadata; T-02: package and CLI bootstrap. |
+| Tasks remaining | T-03 through T-12. |
+| Tasks now unblocked | T-03; its T-02 dependency is complete. |
+| Blocked tasks | T-04 through T-12 remain downstream of T-03. |
+| Failing tests | None; all 10 current tests pass. |
 
-**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest -q` passed (5 tests); `pip check` reported no broken requirements. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available. The earlier no-tests-collected result predates these tests.
+**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest -q` passed (10 tests); `pip check` reported no broken requirements. Editable installation succeeded, and both `python -m doc_sync --help` and the `doc-sync` console script display usage. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available.
 
 ## Dependency-Ordered Tasks
 
 | ID | Title | Description | Files touched | Dependencies | Priority | Estimate | Requirement IDs | Copilot feature |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | T-01 | Resolve runtime and dependency policy | Record the confirmed Python range and minimum-only dependencies in requirements and project metadata; add metadata tests. | `docs/requirements.md`, `pyproject.toml`, `tests/test_project_metadata.py` | None | P0; Done | 0.5 day | NFR-02, NFR-03 | requirements-analyst agent + requirements prompt |
-| T-02 | Bootstrap package and CLI | Add the installable package, `argparse` entry point, target path validation, `--yes` parsing, and help/usage behavior. | `pyproject.toml`, `src/doc_sync/__init__.py`, `src/doc_sync/__main__.py`, `src/doc_sync/cli.py`, `tests/test_cli.py` | T-01 | P1 | 0.5 day | FR-01, FR-07, NFR-04 | implementer agent + post-edit hook |
+| T-02 | Bootstrap package and CLI | Add the installable package, `argparse` entry point, target path validation, `--yes` parsing, and help/usage behavior. | `pyproject.toml`, `src/doc_sync/__init__.py`, `src/doc_sync/__main__.py`, `src/doc_sync/cli.py`, `tests/test_cli.py` | T-01 | P1; Done | 0.5 day | FR-01, FR-07, NFR-04 | implementer agent + post-edit hook |
 | T-03 | Implement repository scanner | Walk local Git repos/plain folders once; prune `.git`, tests, CI and excluded directories; reject out-of-root symlinks; enforce file-count and byte budgets. | `src/doc_sync/scanner.py`, `tests/test_scanner.py` | T-02 | P1 | 0.5 day | FR-01, FR-05, NFR-02, NFR-03 | implementer agent + post-edit hook |
 | T-04 | Add Secret Guard | Exclude sensitive filenames before opening; screen permitted content before parsing; discard matches, fail closed on uncertain sanitization, and report location only. | `src/doc_sync/security.py`, `tests/test_security.py` | T-03 | P1 | 0.5-1 day | FR-05, FR-06, NFR-01 | implementer agent + post-edit hook |
 | T-05 | Extract Python API facts | Use `ast`/`tokenize` without imports to list modules and public functions/classes, signatures, docstrings, literal `__all__`, and simple static relative re-exports. | `src/doc_sync/extractors/python_api.py`, `tests/test_python_api.py` | T-04 | P1 | 1 day | FR-03, FR-04, NFR-01 | implementer agent + post-edit hook |
@@ -97,12 +97,12 @@
 
 ## Blocked Tasks
 
-- **T-03 through T-12 are blocked** on T-02 completion, according to the dependency chain in the task table.
+- **T-04 through T-12 are blocked** on T-03 completion, according to the dependency chain in the task table.
 - Python 3.11 runtime execution remains a verification gap for T-01, not a blocker for T-02; add a Python 3.11 CI check before claiming the supported minimum has been exercised.
 
 ## Copilot Workflow and Approval Gate
 
-- Use the requirements-analyst agent and requirements prompt for T-01's unresolved product decisions.
+- T-01's runtime and dependency decisions are resolved and recorded in `docs/requirements.md` and `pyproject.toml`.
 - Use the implementer agent for one task at a time. The post-edit hook runs pytest and scans changed files after edits; use the verify prompt for documented acceptance checks.
 - After T-12, obtain human approval before code review, use the code-reviewer agent and code-review prompt, then run verification and create `docs/test-report.md` with the verify prompt.
-- This plan is not authorization to implement. Wait for explicit human approval before beginning T-02.
+- Wait for explicit human approval before beginning T-03.
