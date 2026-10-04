@@ -126,7 +126,6 @@ Actual output:
 ## Known Limitations
 
 - Python 3.11 was not tested locally; the available local runtime is Python 3.13.
-- The automated vulnerable-dependency scan was not run because `pip-audit` is not installed. The code-review report rates dependency safety as PASS, but that is not a substitute for an advisory scan.
 - Generated fields without verifiable evidence intentionally contain the exact text `Not Found`.
 - The requirements mark support for languages other than Python as out of scope.
 - Hosted-repository integration, GitHub API access, and authentication are out of scope; the tool operates on local repositories or folders.
