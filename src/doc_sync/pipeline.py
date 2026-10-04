@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doc_sync.approval import prepare_approval
+from doc_sync.approval import build_diff, prepare_approval
 from doc_sync.extractors.project_config import extract_project_config
 from doc_sync.extractors.python_api import extract_public_api_from_file
 from doc_sync.markers import replace_marked_section
 from doc_sync.rendering import render_empty_repository_readme, render_readme
 from doc_sync.scanner import scan_repository
-from doc_sync.security import is_secret_path
+from doc_sync.security import contains_secret_value, is_secret_path
 from doc_sync.writer import safe_write_document
 
 
@@ -30,8 +30,26 @@ def _render_api_facts(python_files: list[Path]) -> dict[str, object]:
         except Exception:
             continue
         if entries:
-            modules.append({"name": file_path.stem, "functions": [entry for entry in entries if entry.get("kind") == "function"], "classes": [entry for entry in entries if entry.get("kind") == "class"]})
+            modules.append(
+                {
+                    "name": file_path.stem,
+                    "functions": [entry for entry in entries if entry.get("kind") == "function"],
+                    "classes": [entry for entry in entries if entry.get("kind") == "class"],
+                }
+            )
     return {"modules": modules}
+
+
+def _apply_approved_document(target: Path, content: str, *, yes: bool) -> dict[str, object]:
+    original = _read_existing(target)
+    updated = replace_marked_section(original, content)
+    if contains_secret_value(original) or contains_secret_value(updated):
+        raise ValueError(f"Refusing to update secret-bearing target: {target}")
+    diff = build_diff(original, updated)
+    approval = prepare_approval(original, updated, approved=yes)
+    if yes:
+        safe_write_document(target, updated, approved=True)
+    return {"approved": bool(approval["approved"]), "diff": diff, "content": updated}
 
 
 def generate_documentation(root: str | Path, *, yes: bool = False) -> dict[str, object]:
@@ -48,28 +66,27 @@ def generate_documentation(root: str | Path, *, yes: bool = False) -> dict[str, 
 
     if not python_files:
         content = render_empty_repository_readme()
-        original = _read_existing(readme_path)
-        updated = replace_marked_section(original, content)
-        approval = prepare_approval(original, updated, approved=True)
-        if approval["approved"] or yes:
-            safe_write_document(readme_path, updated, approved=True)
-        return {"status": "ok", "warnings": scan_result.warnings, "readme": updated}
+        result = _apply_approved_document(readme_path, content, yes=yes)
+        return {"status": "ok", "warnings": scan_result.warnings, "readme": result["content"], "approval": result}
 
     facts = extract_project_config(target)
     readme_content = render_readme(facts)
-    original_readme = _read_existing(readme_path)
-    updated_readme = replace_marked_section(original_readme, readme_content)
-    if yes:
-        prepare_approval(original_readme, updated_readme, approved=True)
-        safe_write_document(readme_path, updated_readme, approved=True)
+    readme_result = _apply_approved_document(readme_path, readme_content, yes=yes)
 
     api_facts = _render_api_facts(python_files)
-    api_content = "# API Reference\n\n" + "\n".join(f"## {module['name']}" for module in api_facts.get("modules", [])) if api_facts.get("modules") else "# API Reference\n\nNot Found\n"
+    api_content = (
+        "# API Reference\n\n" + "\n".join(f"## {module['name']}" for module in api_facts.get("modules", []))
+        if api_facts.get("modules")
+        else "# API Reference\n\nNot Found\n"
+    )
     docs_dir.mkdir(exist_ok=True)
-    original_api = _read_existing(api_path)
-    updated_api = replace_marked_section(original_api, api_content)
-    if yes:
-        prepare_approval(original_api, updated_api, approved=True)
-        safe_write_document(api_path, updated_api, approved=True)
+    api_result = _apply_approved_document(api_path, api_content, yes=yes)
 
-    return {"status": "ok", "warnings": scan_result.warnings, "readme": updated_readme, "api": updated_api}
+    return {
+        "status": "ok",
+        "warnings": scan_result.warnings,
+        "readme": readme_result["content"],
+        "api": api_result["content"],
+        "readme_approval": readme_result,
+        "api_approval": api_result,
+    }

@@ -20,3 +20,11 @@ def test_safe_write_document_refuses_secret_like_targets(tmp_path) -> None:
 
     with pytest.raises(ValueError):
         safe_write_document(target, "new", approved=True)
+
+
+def test_safe_write_document_refuses_secret_like_file_contents(tmp_path) -> None:
+    target = tmp_path / "README.md"
+    target.write_text("TOKEN=abc123\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        safe_write_document(target, "new content", approved=True)

@@ -9,6 +9,13 @@ _SECRET_KEY_PATTERN = re.compile(
     r"(?i)(token|password|passwd|api[_-]?key|secret(?:[_-]?key)?|private[_-]?key|access[_-]?key|authorization)\s*[:=]\s*([^\s\"'`]+)"
 )
 
+
+def contains_secret_value(text: str | None) -> bool:
+    """Return True when the content contains a secret-like assignment."""
+    if text is None:
+        return False
+    return bool(_SECRET_KEY_PATTERN.search(text))
+
 _SECRET_PATH_TOKENS = (
     "credentials",
     "secret",

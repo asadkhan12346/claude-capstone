@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from doc_sync.security import is_secret_path
+from doc_sync.security import contains_secret_value, is_secret_path
 
 
 def safe_write_document(path: str | Path, content: str, *, approved: bool = False, fingerprint: str | None = None) -> dict[str, str]:
@@ -17,6 +17,10 @@ def safe_write_document(path: str | Path, content: str, *, approved: bool = Fals
         raise ValueError(f"Refusing to write secret-like target: {target}")
     if not approved:
         raise ValueError("write requires approval before any update")
+    if contains_secret_value(content):
+        raise ValueError(f"Refusing to write content containing a secret-like value to: {target}")
+    if target.exists() and contains_secret_value(target.read_text(encoding="utf-8")):
+        raise ValueError(f"Refusing to update secret-bearing target: {target}")
 
     backup_path = target.with_name(f"{target.name}.bak")
     if target.exists():
