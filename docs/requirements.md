@@ -1,6 +1,6 @@
 # Automated Documentation Sync Requirements
 
-**Status:** Draft, awaiting human approval  
+**Status:** Approved by user; baseline synchronized after design review  
 **Basis:** User story and clarified answers provided by the user
 
 ## Overview
@@ -16,6 +16,8 @@ The tool documents verifiable facts from local Python projects. It generates Mar
 - Local Git repositories or plain folders containing Python projects.
 - Manual, on-demand command-line invocation.
 - Inspection of Python source files, `requirements.txt`, `pyproject.toml`, `.env.example`, YAML and JSON configuration, and the existing root `README.md`.
+- Prune `.git`, tests, and CI directories before descent; do not follow symlinks outside the selected root.
+- Bound scanning to 1,000 supported files, 5 MiB per file, and 100 MiB aggregate input. Skip over-budget inputs with a warning and mark affected fields `Not Found`.
 - Generation or update of the root `README.md` and `docs/api.md`.
 - Documentation based only on verifiable repository facts.
 
@@ -74,17 +76,19 @@ Continue the documentation run when an individual file is missing or malformed, 
 - A missing file results in `Not Found` for affected fields, while processing continues.
 - A malformed file is skipped, produces a warning, results in `Not Found` for affected fields, and does not abort the run.
 - Warnings do not expose sensitive content.
-- An empty repository produces a short Markdown document stating that the repository is empty and does not invent project or API details.
+- If the selected folder contains no Python files, the root README receives a marked section stating exactly `Repository is empty or contains no supported files`; API generation is skipped, a clear non-error message is printed, and the run exits successfully.
 
 ### FR-06: Protect existing documentation during updates
 
-Never silently overwrite existing documentation. Show a proposed diff and require approval before writing, unless the user explicitly supplies `--yes`. Keep a backup of each original file. Update only content between `<!-- doc-sync:start -->` and `<!-- doc-sync:end -->` markers, preserving hand-written content outside them.
+Never silently overwrite existing documentation. Always show a proposed diff. Require approval before writing unless the user explicitly supplies `--yes`, which skips the prompt but not the diff. Before writing, copy the original to `<filename>.bak` in the same folder, replacing any previous backup so only the latest remains. Update only content between `<!-- doc-sync:start -->` and `<!-- doc-sync:end -->` markers. If neither marker exists, append a new marked section without changing existing content; if markers are unmatched, duplicated, or malformed, refuse that target. Fingerprint targets when generating diffs and revalidate after approval. If a target changes, regenerate the diff and require approval again. If an existing target contains a secret-like value, do not diff, back up, or update it; report only its path.
 
 **Acceptance criteria**
 - Without `--yes`, an existing document is not changed until the user approves the proposed diff.
-- With `--yes`, the update is explicitly authorized.
-- A backup of the original document exists before it is modified.
-- Content outside the marker pair remains unchanged.
+- With `--yes`, the update is explicitly authorized, but the diff is still shown.
+- A backup of the original document exists as `<filename>.bak` in the same folder before it is modified; only the latest backup is retained.
+- Content outside a valid marker pair remains unchanged. If markers are absent, the generated section is appended; if markers are malformed or duplicated, that target is not modified.
+- If the target changes after diff generation, no write occurs until a fresh diff is shown and approved.
+- A target containing a secret-like value is not diffed, backed up, or modified.
 
 ### FR-07: Run locally on demand
 
@@ -100,20 +104,22 @@ Provide manual command-line execution for local targets without authentication, 
 ### NFR-01: Security and privacy
 
 - Process repository content locally; do not send it to external services.
-- Skip `.env`, `*.key`, `*.pem`, and credential files.
-- Never read, print, or write secret values to generated documents, diffs, warnings, or logs. Redact content that looks like a token or password before it can appear in output.
+- Never open `.env`, `*.key`, `*.pem`, or case-insensitive `credentials*` files.
+- A local pre-parser Secret Guard screens permitted input for token, password, and API-key patterns. It discards matches before parsers or the Fact Model receive the value; if safe sanitization is uncertain, the file is skipped and affected fields are `Not Found`.
+- Never retain matched values or write raw or partially masked values to generated documents, diffs, backups, warnings, or logs. If an existing output contains a secret-like value, refuse to update it and report only its path.
 - If a token is supplied through an environment variable, never print or write it to any output or log.
 
 ### NFR-02: Performance
 
-- Support repositories containing up to approximately 1,000 files.
-- Complete a run in under 60 seconds for a repository of that size.
+- Support repositories containing up to approximately 1,000 supported files and 100 MiB of aggregate input, with no supported input file larger than 5 MiB.
+- Complete active processing in under 60 seconds at that limit; time waiting for human diff approval is excluded.
 
 ### NFR-03: Reliability
 
 - A failure in one input file must not crash the whole run.
 - Missing and malformed inputs must be reported as specified in FR-05.
 - Preserve original files through backups and marker-bounded updates as specified in FR-06.
+- Do not write a target whose content changed after its approval diff was generated; regenerate the diff and request approval again.
 
 ### NFR-04: Usability
 
@@ -132,7 +138,6 @@ Provide manual command-line execution for local targets without authentication, 
 
 ## Open Questions
 
-- Which document or documents should state that the repository is empty: `Not Found`.
-- What should happen if the documentation markers are absent, duplicated, or malformed: `Not Found`.
-- What are the backup naming, location, and retention policies: `Not Found`.
-- Should a diff still be displayed when `--yes` is supplied: `Not Found`.
+- Exact CLI command name and invocation syntax, other than the `--yes` flag: `Not Found`.
+- Exact supported Python runtime versions for the tool itself: `Not Found`.
+- Supported/pinned versions and update policy for PyYAML and `packaging`: `Not Found` (deferred to implementation planning).
