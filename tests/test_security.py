@@ -7,6 +7,8 @@ from doc_sync.security import SecretGuard, is_secret_path, sanitize_text
 
 def test_secret_paths_are_rejected() -> None:
     assert is_secret_path(Path(".env")) is True
+    assert is_secret_path(Path(".env.example")) is False
+    assert is_secret_path(Path(".env.local")) is False
     assert is_secret_path(Path("secrets/keys/private.pem")) is True
     assert is_secret_path(Path("settings/credentials.json")) is True
     assert is_secret_path(Path("src/app.py")) is False

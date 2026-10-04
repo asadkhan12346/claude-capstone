@@ -8,13 +8,13 @@
 
 | Category | Status |
 | --- | --- |
-| Tasks done | T-01: runtime/dependency policy and metadata; T-02: package and CLI bootstrap; T-03: repository scanner implementation; T-04: secret guard; T-05: Python API extraction. |
-| Tasks remaining | T-06 through T-12. |
-| Tasks now unblocked | T-06; its T-05 dependency is complete. |
-| Blocked tasks | T-07 through T-12 remain downstream of T-06. |
+| Tasks done | T-01: runtime/dependency policy and metadata; T-02: package and CLI bootstrap; T-03: repository scanner implementation; T-04: secret guard; T-05: Python API extraction; T-06: project/config extraction. |
+| Tasks remaining | T-07 through T-12. |
+| Tasks now unblocked | T-07; its T-06 dependency is complete. |
+| Blocked tasks | T-08 through T-12 remain downstream of T-07. |
 | Failing tests | None; the project pytest suite passes. |
 
-**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest -q` passed (17 tests), including the new T-03, T-04, and T-05 checks; `pip check` reported no broken requirements. Editable installation succeeded, and both `python -m doc_sync --help` and the `doc-sync` console script display usage. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available.
+**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest -q` passed (19 tests), including the new T-03, T-04, T-05, and T-06 checks; `pip check` reported no broken requirements. Editable installation succeeded, and both `python -m doc_sync --help` and the `doc-sync` console script display usage. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available.
 
 ## Dependency-Ordered Tasks
 
@@ -25,7 +25,7 @@
 | T-03 | Implement repository scanner | Walk local Git repos/plain folders once; prune `.git`, tests, CI and excluded directories; reject out-of-root symlinks; enforce file-count and byte budgets. | `src/doc_sync/scanner.py`, `tests/test_scanner.py` | T-02 | P1; Done | 0.5 day | FR-01, FR-05, NFR-02, NFR-03 | implementer agent + post-edit hook |
 | T-04 | Add Secret Guard | Exclude sensitive filenames before opening; screen permitted content before parsing; discard matches, fail closed on uncertain sanitization, and report location only. | `src/doc_sync/security.py`, `tests/test_security.py` | T-03 | P1; Done | 0.5-1 day | FR-05, FR-06, NFR-01 | implementer agent + post-edit hook |
 | T-05 | Extract Python API facts | Use `ast`/`tokenize` without imports to list modules and public functions/classes, signatures, docstrings, literal `__all__`, and simple static relative re-exports. | `src/doc_sync/extractors/python_api.py`, `tests/test_python_api.py` | T-04 | P1; Done | 1 day | FR-03, FR-04, NFR-01 | implementer agent + post-edit hook |
-| T-06 | Extract project/config facts | Parse TOML, JSON, YAML, `.env.example`, requirements, and existing README for dependencies, entry points, config names, overview/usage facts; skip malformed files independently. | `src/doc_sync/extractors/project_config.py`, `tests/test_project_config.py` | T-01, T-04 | P1 | 1 day | FR-01, FR-02, FR-04, FR-05 | implementer agent + post-edit hook |
+| T-06 | Extract project/config facts | Parse TOML, JSON, YAML, `.env.example`, requirements, and existing README for dependencies, entry points, config names, overview/usage facts; skip malformed files independently. | `src/doc_sync/extractors/project_config.py`, `tests/test_project_config.py` | T-01, T-04 | P1; Done | 1 day | FR-01, FR-02, FR-04, FR-05 | implementer agent + post-edit hook |
 | T-07 | Build fact model and resolver | Store sanitized values with source locations; merge evidence; represent missing fields as exact `Not Found`; retain non-sensitive conflicts. | `src/doc_sync/facts.py`, `tests/test_facts.py` | T-05, T-06 | P1 | 0.5 day | FR-04, FR-05, NFR-01, NFR-03 | implementer agent + post-edit hook |
 | T-08 | Render Markdown documents | Render the root README and `docs/api.md` from facts; escape Markdown safely; render the exact no-Python README section and omit API output in that path. | `src/doc_sync/rendering.py`, `tests/test_rendering.py` | T-07 | P1 | 0.5-1 day | FR-02, FR-03, FR-04, FR-05 | implementer agent + verify prompt + post-edit hook |
 | T-09 | Implement diff and marker handling | Produce a redacted diff every run; support approval and `--yes`; append a marker pair when absent; update only one valid pair; reject malformed/duplicate pairs; fingerprint targets and re-prompt on changes. | `src/doc_sync/approval.py`, `src/doc_sync/markers.py`, `tests/test_approval.py`, `tests/test_markers.py` | T-08 | P1 | 1 day | FR-06, NFR-03, NFR-04 | implementer agent + verify prompt + post-edit hook |
@@ -105,4 +105,4 @@
 - T-01's runtime and dependency decisions are resolved and recorded in `docs/requirements.md` and `pyproject.toml`.
 - Use the implementer agent for one task at a time. The post-edit hook runs pytest and scans changed files after edits; use the verify prompt for documented acceptance checks.
 - After T-12, obtain human approval before code review, use the code-reviewer agent and code-review prompt, then run verification and create `docs/test-report.md` with the verify prompt.
-- T-05 is complete; proceed to T-06 only after the next human approval gate for the implementation sequence.
+- T-06 is complete; proceed to T-07 only after the next human approval gate for the implementation sequence.

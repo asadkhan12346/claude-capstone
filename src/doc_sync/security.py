@@ -10,7 +10,6 @@ _SECRET_KEY_PATTERN = re.compile(
 )
 
 _SECRET_PATH_TOKENS = (
-    ".env",
     "credentials",
     "secret",
     "token",
@@ -31,9 +30,11 @@ def is_secret_path(path: str | Path) -> bool:
     lower_name = candidate.name.lower()
     lower_parts = {part.lower() for part in candidate.parts}
 
-    if lower_name in {".env", ".env.example", ".env.local", ".envrc"}:
+    if lower_name == ".env":
         return True
-    if lower_name.startswith(".env"):
+    if lower_name in {".envrc"}:
+        return True
+    if lower_name.startswith(".env") and lower_name not in {".env.example", ".env.local"}:
         return True
     if candidate.suffix.lower() in _SECRET_SUFFIXES:
         return True
