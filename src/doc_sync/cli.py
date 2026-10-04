@@ -6,6 +6,8 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from doc_sync.pipeline import generate_documentation
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -37,8 +39,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        validate_target_directory(args.target)
+        target = validate_target_directory(args.target)
     except ValueError as error:
         parser.error(str(error))
-    print("Target directory validated; documentation sync is not yet connected.")
+
+    try:
+        generate_documentation(target, yes=args.yes)
+    except ValueError as error:
+        parser.error(str(error))
+
+    print(f"Documentation sync completed for {target}.")
     return 0

@@ -33,7 +33,7 @@ def test_runtime_dependencies_use_requested_minimum_versions() -> None:
 def test_pytest_is_a_development_dependency() -> None:
     project = load_project_metadata()
 
-    assert project["optional-dependencies"]["dev"] == ["pytest>=8.0"]
+    assert project["optional-dependencies"]["dev"] == ["pytest>=8.0", "pytest-cov>=6.0"]
 
 
 def test_requirements_record_the_final_runtime_and_dependency_policy() -> None:

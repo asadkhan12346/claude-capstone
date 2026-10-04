@@ -1,6 +1,6 @@
 # Automated Documentation Sync Implementation Plan
 
-**Status:** Draft; awaiting human approval before implementation  
+**Status:** Implementation complete, verified, and approved on 2026-10-05  
 **Basis:** Approved requirements, approved Option A architecture, and accepted design-review findings  
 **Estimate note:** Estimates are engineering effort, excluding human approval wait time.
 
@@ -10,11 +10,11 @@
 | --- | --- |
 | Tasks done | T-01: runtime/dependency policy and metadata; T-02: package and CLI bootstrap; T-03: repository scanner implementation; T-04: secret guard; T-05: Python API extraction; T-06: project/config extraction; T-07: fact model and resolver; T-08: README and API rendering; T-09: diff/approval and marker handling; T-10: safe backup writer; T-11: pipeline and reporting; T-12: end-to-end and integration coverage. |
 | Tasks remaining | None. |
-| Tasks now unblocked | None; implementation is complete and awaiting approval. |
+| Tasks now unblocked | None; implementation is complete and verified. |
 | Blocked tasks | None. |
-| Failing tests | None; the project pytest suite passes. |
+| Failing tests | None; the project pytest suite passes after the CLI pipeline fix. |
 
-**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest -q` passed (20 tests), including the T-07 through T-12 checks. Editable installation succeeded, and the pipeline created README and API outputs for a representative project. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available.
+**Latest full-suite result:** `.venv\Scripts\python.exe -m pytest --cov=doc_sync --cov-report=term-missing --cov-report=html -q` passed with 41 tests and 80% total coverage. The CLI end-to-end run on a fresh sample repo produced a README with required sections and API output, confirming the pipeline is connected correctly. The clean environment uses Python 3.13. The selected minimum, Python 3.11, is not installed locally, so execution on the minimum runtime remains unverified and should be covered in CI or when Python 3.11 is available.
 
 ## Dependency-Ordered Tasks
 
