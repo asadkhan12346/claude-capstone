@@ -1,42 +1,21 @@
 # Changelog
 
-## 2026-10-05
+All notable changes to this project are documented in this file.
 
-### Summary
+## [Unreleased]
 
-Completed and verified the automated documentation sync workflow through the CLI.
+### Added
 
-### Changes Made
+- Eight-phase, human-approved Copilot SDLC workflow with an orchestrator, tamper checks, audit logging, and a PreToolUse guard.
+- Local Todo CLI using `tasks.json`, monotonic task IDs, and atomic storage updates.
+- Requirement-tagged `unittest` coverage, infrastructure checks, clean-state audit, contract, and runbook.
 
-- Connected the CLI to the documentation generation pipeline.
-- Added verification coverage for fixture repositories, generated output, and secret handling.
-- Updated implementation and verification documentation.
+### Changed
 
-### Test Evidence
+- Reorganized the repository from the documentation-sync project into the requested capstone structure.
+- Standardized project verification on Python 3.11+ and the Python standard library.
 
-Command:
+### Fixed
 
-```text
-.\.venv\Scripts\python.exe -m pytest -q
-```
-
-Actual output:
-
-```text
-.........................................                                [100%]
-41 passed in 0.64s
-```
-
-### Known Limitations
-
-- Python 3.11 was not tested locally; the available local runtime is Python 3.13.
-- An automated vulnerable-dependency scan was not run because `pip-audit` is not installed.
-
-### Reviewer Checklist
-
-- [x] Requirements met, based on the implementation plan and code-review record.
-- [x] Tests pass; full pytest suite reports 41 passed.
-- [x] No secrets exposed; secret-handling tests pass and generated artifacts contain no reported secret values.
-- [x] Documentation updated, including the verification report and PR materials.
-- [ ] No vulnerable dependencies; automated advisory scan remains unverified (`pip-audit` unavailable).
-- [x] Code reviewed; see `docs/code-review.md`.
+- Reject inconsistent persisted `next_id` values so task IDs cannot be reused or collide.
+- Preserve storage bytes for no-op and failure paths and escape terminal control and Unicode line separators in displayed titles.
