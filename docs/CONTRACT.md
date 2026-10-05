@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository demonstrates a story-agnostic, eight-phase SDLC pipeline for one `user_story.md`. Each phase has a narrowly scoped Copilot agent and prompt. A phase must be submitted and explicitly approved by a human before the next phase becomes active. The final phase prepares pull-request materials; opening a pull request is a separate, explicitly authorized action.
+This repository demonstrates a story-agnostic, eight-phase SDLC pipeline for one `user_story.md`. Each phase has a narrowly scoped Claude Code agent and command. A phase must be submitted and explicitly approved by a human before the next phase becomes active. The final phase prepares pull-request materials; opening a pull request is a separate, explicitly authorized action.
 
 The pipeline's controls are demo-grade. The orchestrator validates state and artifact hashes, the PreToolUse hook blocks selected unsafe operations, and the agent instructions define scope. These controls do not replace branch protection, code review, or a trusted human operator.
 
@@ -10,14 +10,14 @@ The pipeline's controls are demo-grade. The orchestrator validates state and art
 
 | # | id | agent | prompt | owns |
 |---|----|----|----|----|
-| 1 | requirements | `.github/agents/requirements.agent.md` | `.github/prompts/requirements.prompt.md` | `artifacts/requirements.md` |
-| 2 | architecture | `.github/agents/architecture.agent.md` | `.github/prompts/architecture.prompt.md` | `artifacts/architecture.md` |
-| 3 | design-review | `.github/agents/design-review.agent.md` | `.github/prompts/design-review.prompt.md` | `artifacts/design-review.md` |
-| 4 | planning | `.github/agents/planning.agent.md` | `.github/prompts/planning.prompt.md` | `artifacts/implementation-plan.md` |
-| 5 | implementation | `.github/agents/implementation.agent.md` | `.github/prompts/implementation.prompt.md` | `todo/__init__.py`, `todo/app.py`, `todo/cli.py`, `tests/test_todo.py` |
-| 6 | review | `.github/agents/review.agent.md` | `.github/prompts/review.prompt.md` | `artifacts/review.md` |
-| 7 | verify | `.github/agents/verify.agent.md` | `.github/prompts/verify.prompt.md` | `artifacts/verify.md` |
-| 8 | pr | `.github/agents/pr.agent.md` | `.github/prompts/pr.prompt.md` | `artifacts/pr.md`, `CHANGELOG.md` |
+| 1 | requirements | `.claude/agents/requirements.md` | `.claude/commands/requirements.md` | `artifacts/requirements.md` |
+| 2 | architecture | `.claude/agents/architecture.md` | `.claude/commands/architecture.md` | `artifacts/architecture.md` |
+| 3 | design-review | `.claude/agents/design-review.md` | `.claude/commands/design-review.md` | `artifacts/design-review.md` |
+| 4 | planning | `.claude/agents/planning.md` | `.claude/commands/planning.md` | `artifacts/implementation-plan.md` |
+| 5 | implementation | `.claude/agents/implementation.md` | `.claude/commands/implementation.md` | `todo/__init__.py`, `todo/app.py`, `todo/cli.py`, `tests/test_todo.py` |
+| 6 | review | `.claude/agents/review.md` | `.claude/commands/review.md` | `artifacts/review.md` |
+| 7 | verify | `.claude/agents/verify.md` | `.claude/commands/verify.md` | `artifacts/verify.md` |
+| 8 | pr | `.claude/agents/pr.md` | `.claude/commands/pr.md` | `artifacts/pr.md`, `CHANGELOG.md` |
 
 `artifacts/requirements.md`, the eight phase outputs, the phase IDs, and their sequence are fixed. The pipeline does not encode the sample story's requirements; only implementation ownership names the sample app files.
 
@@ -27,11 +27,11 @@ Each phase is `LOCKED`, `ACTIVE`, `AWAITING_APPROVAL`, or `APPROVED`. Initially 
 
 ## Files
 
-The manifest at `sdlc/phases.json` defines phase order, agent and prompt paths, owned files, and protected paths. `sdlc/state.json` records the current state, while `sdlc/audit.log.jsonl` records orchestrator actions. The state and audit files are initialized by the orchestrator, not committed as pre-populated pipeline results.
+The manifest at `sdlc/phases.json` defines phase order, agent and command paths, owned files, and protected paths. `sdlc/state.json` records the current state, while `sdlc/audit.log.jsonl` records orchestrator actions. The state and audit files are initialized by the orchestrator, not committed as pre-populated pipeline results.
 
 ## Protected files
 
-The following paths are protected from phase writes: `sdlc/state.json`, `sdlc/audit.log.jsonl`, `sdlc/phases.json`, `orchestrator.py`, `hooks/`, and `.github/hooks/`. Agent phases may write only files owned by their active phase. Infrastructure files are created before the live run and are outside phase ownership.
+The following paths are protected from phase writes: `sdlc/state.json`, `sdlc/audit.log.jsonl`, `sdlc/phases.json`, `orchestrator.py`, `.claude/hooks/`, and `.claude/settings.json`. Agent phases may write only files owned by their active phase. Infrastructure files are created before the live run and are outside phase ownership.
 
 ## Orchestrator CLI
 

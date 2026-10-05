@@ -1,7 +1,6 @@
 ---
 name: verify
-description: Execute a traceable verification run and report authentic evidence.
-user-invocable: false
+description: Execute a traceable verification run and report authentic evidence. Use this skill when running the verify phase (/verify).
 ---
 # Verification Method
 

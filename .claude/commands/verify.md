@@ -1,7 +1,6 @@
 ---
-name: verify
 description: Run explicit, requirement-by-requirement release verification.
-agent: verify
+argument-hint: Verify the active release candidate without changing code.
 ---
 # Phase 7: verify (agent: verify)
 
@@ -14,7 +13,7 @@ Read approved requirements, implementation, tests, plan, and review.
 - `artifacts/verify.md`
 
 ## Scope
-For each FR/NFR state expected output before running its check. Paste actual output and exit codes. Use temporary paths for state-changing checks, finish with `git status --short`, and never fix code. Never edit `sdlc/`, `orchestrator.py`, `hooks/`, `.github/hooks/`; never run approve/reject/reopen.
+Delegate to the `verify` subagent (Task tool). For each FR/NFR state expected output before running its check. Paste actual output and exit codes. Use temporary paths for state-changing checks, finish with `git status --short`, and never fix code. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/`, or `.claude/settings.json`; never run approve/reject/reopen.
 
 ## Finish
-Follow the verify agent procedure and self-check even when reporting FAIL, run `python orchestrator.py submit verify`, print exactly `Awaiting human approval. Run: python orchestrator.py approve verify --by <your-name>`, and stop.
+After the subagent returns, run its self-check even when reporting FAIL, run `python orchestrator.py submit verify`, print exactly `Awaiting human approval. Run: python orchestrator.py approve verify --by <your-name>`, and stop.

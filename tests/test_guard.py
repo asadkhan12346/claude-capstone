@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import tempfile
@@ -9,7 +10,13 @@ import unittest
 from pathlib import Path
 
 import orchestrator
-from hooks import guard
+
+_guard_spec = importlib.util.spec_from_file_location(
+    "guard",
+    Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "guard.py",
+)
+guard = importlib.util.module_from_spec(_guard_spec)  # type: ignore[arg-type]
+_guard_spec.loader.exec_module(guard)  # type: ignore[union-attr]
 
 
 class GuardTests(unittest.TestCase):
@@ -18,8 +25,7 @@ class GuardTests(unittest.TestCase):
         self.root = Path(self.temporary_directory.name)
         source_root = Path(orchestrator.__file__).resolve().parent
         shutil.copytree(source_root / "sdlc", self.root / "sdlc")
-        (self.root / "hooks").mkdir()
-        (self.root / ".github" / "hooks").mkdir(parents=True)
+        (self.root / ".claude" / "hooks").mkdir(parents=True)
         (self.root / "artifacts").mkdir()
         (self.root / "orchestrator.py").write_text("protected\n", encoding="utf-8")
         orchestrator.init_state(self.root)
@@ -28,38 +34,46 @@ class GuardTests(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def evaluate_shell(self, command: str) -> str | None:
-        return guard.evaluate(self.root, "run_in_terminal", command, [])
+        return guard.evaluate(self.root, "Bash", command, [])
 
     def test_parse_tool_name_payload_and_command(self) -> None:
         tool, command, paths = guard.parse_payload(
             json.dumps(
                 {
-                    "tool_name": "run_in_terminal",
+                    "tool_name": "Bash",
                     "tool_input": {"command": "git status"},
                 }
             )
         )
-        self.assertEqual((tool, command, paths), ("run_in_terminal", "git status", []))
+        self.assertEqual((tool, command, paths), ("Bash", "git status", []))
 
     def test_parse_alternate_payload_and_patch_paths(self) -> None:
-        raw = "\ufeff" + json.dumps(
+        raw = "﻿" + json.dumps(
             {
-                "toolName": "apply_patch",
-                "toolArgs": json.dumps(
-                    {"input": "*** Begin Patch\n*** Update File: artifacts/requirements.md\n*** End Patch"}
-                ),
+                "tool_name": "Write",
+                "tool_input": {"file_path": "artifacts/requirements.md"},
             }
         )
         tool, command, paths = guard.parse_payload(raw)
-        self.assertEqual(tool, "apply_patch")
+        self.assertEqual(tool, "Write")
         self.assertIsNone(command)
         self.assertEqual(paths, ["artifacts/requirements.md"])
+        raw2 = json.dumps(
+            {
+                "tool_name": "NotebookEdit",
+                "tool_input": {"notebook_path": "notebooks/analysis.ipynb"},
+            }
+        )
+        tool2, command2, paths2 = guard.parse_payload(raw2)
+        self.assertEqual(tool2, "NotebookEdit")
+        self.assertIsNone(command2)
+        self.assertEqual(paths2, ["notebooks/analysis.ipynb"])
 
     def test_malformed_shell_and_write_payloads_fail_closed(self) -> None:
         malformed = [
             "not json",
-            json.dumps({"tool_name": "run_in_terminal", "tool_input": {}}),
-            json.dumps({"tool_name": "write_file", "tool_input": {}}),
+            json.dumps({"tool_name": "Bash", "tool_input": {}}),
+            json.dumps({"tool_name": "Write", "tool_input": {}}),
         ]
         for payload in malformed:
             with self.subTest(payload=payload):

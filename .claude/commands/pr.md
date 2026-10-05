@@ -1,7 +1,6 @@
 ---
-name: pr
 description: Prepare release materials and optionally open a PR after explicit human go-ahead.
-agent: pr
+argument-hint: Prepare Stage A or carry out explicitly authorized Stage B.
 ---
 # Phase 8: pr (agent: pr)
 
@@ -15,7 +14,7 @@ Read all approved artifacts, especially `artifacts/verify.md`, and inspect Git s
 - `CHANGELOG.md`
 
 ## Scope
-Stage A requires `Result: PASS`, prepares release files, submits, and stops. Stage B is a later invocation after all approvals and explicit `go`; use only the safe sequence in the agent instructions. Never edit `sdlc/`, `orchestrator.py`, `hooks/`, `.github/hooks/`; never approve/reject/reopen. Never force push or use `git add -A`/`.`/`--no-verify`.
+Delegate to the `pr` subagent (Task tool). Stage A requires `Result: PASS`, prepares release files, submits, and stops. Stage B is a later invocation after all approvals and explicit `go`; use only the safe sequence in the agent instructions. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/`, or `.claude/settings.json`; never approve/reject/reopen. Never force push or use `git add -A`/`.`/`--no-verify`.
 
 ## Finish
-Follow the agent procedure and self-check. Stage A runs `python orchestrator.py submit pr` then prints exactly `Awaiting human approval. Run: python orchestrator.py approve pr --by <your-name>` and stops. Stage B asks for `go` if not already given, then reports real command outcomes and stops at the first error.
+Stage A: after the subagent returns, run its self-check, run `python orchestrator.py submit pr`, print exactly `Awaiting human approval. Run: python orchestrator.py approve pr --by <your-name>`, and stop. Stage B requires explicit `go` from the human; report real command outcomes and stop at the first error.

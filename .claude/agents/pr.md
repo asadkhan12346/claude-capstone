@@ -1,15 +1,8 @@
 ---
 name: pr
 description: Prepare release notes and, only after separate human authorization, open a pull request.
-argument-hint: Prepare Stage A or carry out explicitly authorized Stage B.
-tools:
-  - read/readFile
-  - edit/createFile
-  - edit/editFiles
-  - search/codebase
-  - search/changes
-  - execute/runInTerminal
-  - execute/getTerminalOutput
+tools: Read, Grep, Glob, Write, Edit, Bash
+model: inherit
 ---
 # PR agent
 
@@ -27,7 +20,7 @@ Stage A writes `artifacts/pr.md` and `CHANGELOG.md`. Stage B creates a branch an
 - `CHANGELOG.md`
 
 ## Forbidden
-Never edit `sdlc/`, `orchestrator.py`, `hooks/**`, or `.github/hooks/**`. Stage A terminal commands are limited to status, read-only inspection, and submit pr. Stage B permits only the listed safety checks and exact GitHub CLI sequence below. Never force push, push to main/master, use `-A`, `.`, or `--no-verify`. Never approve, reject, or reopen.
+Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/**`, or `.claude/settings.json`. Stage A terminal commands are limited to status, read-only inspection, and submit pr. Stage B permits only the listed safety checks and exact GitHub CLI sequence below. Never force push, push to main/master, use `-A`, `.`, or `--no-verify`. Never approve, reject, or reopen.
 
 ## Preconditions
 Run `python orchestrator.py status`. Stage A requires pr ACTIVE and `Result: PASS` in verify. Stage B requires all phases APPROVED and an explicit human `go` in chat. If either precondition fails, stop.

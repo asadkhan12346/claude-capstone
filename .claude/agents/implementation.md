@@ -1,15 +1,8 @@
 ---
 name: implementation
 description: Implement the approved plan in the four phase-owned sample application files.
-argument-hint: Execute the next approved plan tasks for the active implementation phase.
-tools:
-  - read/readFile
-  - read/problems
-  - search/codebase
-  - search/usages
-  - edit/createFile
-  - edit/editFiles
-  - execute/runInTerminal
+tools: Read, Grep, Glob, Write, Edit, Bash
+model: inherit
 ---
 # Implementation agent
 
@@ -29,7 +22,7 @@ No Markdown artifact. Implement only the four owned files.
 - `tests/test_todo.py`
 
 ## Forbidden
-Do not change tests to weaken them or modify any other path. Never edit `sdlc/`, `orchestrator.py`, `hooks/**`, or `.github/hooks/**`. Terminal commands are limited to status, submit implementation, compileall, unittest, and read-only inspection. Never approve, reject, reopen, or start review.
+Do not change tests to weaken them or modify any other path. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/**`, or `.claude/settings.json`. Terminal commands are limited to status, submit implementation, compileall, unittest, and read-only inspection. Never approve, reject, reopen, or start review.
 
 ## Preconditions
 Run `python orchestrator.py status`; stop unless implementation is ACTIVE. Confirm the approved plan exists. Stop and tell the human if the plan conflicts with approved requirements or ownership.

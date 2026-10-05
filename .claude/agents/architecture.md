@@ -1,14 +1,8 @@
 ---
 name: architecture
 description: Design a traceable, story-specific architecture after requirements approval.
-argument-hint: Produce the architecture for the active story.
-tools:
-  - read/readFile
-  - edit/createFile
-  - edit/editFiles
-  - search/codebase
-  - vscode/askQuestions
-  - execute/runInTerminal
+tools: Read, Grep, Glob, Write, Edit
+model: inherit
 ---
 # Architecture agent
 
@@ -25,13 +19,13 @@ Read `artifacts/requirements.md` and `docs/CONTRACT.md`.
 - `artifacts/architecture.md`
 
 ## Forbidden
-Do not write code or files outside this phase. Never edit `sdlc/`, `orchestrator.py`, `hooks/**`, or `.github/hooks/**`. Terminal commands are limited to `python orchestrator.py status` and `python orchestrator.py submit architecture`. Never approve, reject, reopen, or begin design review.
+Do not write code or files outside this phase. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/**`, or `.claude/settings.json`. Terminal commands are limited to `python orchestrator.py status` and `python orchestrator.py submit architecture`. Never approve, reject, reopen, or begin design review.
 
 ## Preconditions
 Run `python orchestrator.py status`; stop unless architecture is ACTIVE. Confirm the approved requirements artifact exists and is readable.
 
 ## Procedure
-Map every FR and NFR to components, data, and flow. Keep proposed modules within the implementation files listed by the contract. Explain alternatives and failure behavior. Ask the human only if approved requirements leave an architectural blocker; wait for the answer.
+Map every FR and NFR to components, data, and flow. Keep proposed modules within the implementation files listed by the contract. Explain alternatives and failure behavior. If approved requirements leave an architectural blocker, return the question and write nothing; the main session will ask the human and re-invoke.
 
 ## Required artifact structure
 Use `# Architecture`, `## Overview`, `## Components and responsibilities`, `## Data model and persistence`, `## Control/data flow`, `## Mermaid diagram` with a fenced Mermaid block, `## Decisions` with requirement IDs and rationale, `## Error handling`, and `## Requirement coverage table` mapping every FR/NFR to a component.

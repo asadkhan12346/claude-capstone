@@ -1,13 +1,13 @@
 # Runbook
 
-The human performs every approval in a separate interactive terminal. Copilot agents must stop after submitting a phase.
+The human performs every approval in a separate interactive terminal. Claude Code agents must stop after submitting a phase.
 
 ## 1. Clean pre-run check
 Run `python orchestrator.py status`, `python -m unittest discover -s tests -v`, `python -m compileall -q .`, and `python tools/audit_repo.py`.
 Expected: requirements is ACTIVE, seven phases are LOCKED, tests pass, compilation exits 0, and every audit check is PASS. Point: the audit is intentionally valid only before phase outputs exist.
 
 ## 2. Requirements
-Run `python orchestrator.py next`, then invoke `/requirements` in Copilot Chat. Answer its single numbered clarification message.
+Run `python orchestrator.py next`, then invoke `/requirements` in Claude Code. Answer its single numbered clarification message.
 Expected: `artifacts/requirements.md` is submitted and the agent prints the awaiting-approval instruction. Point: do not let the agent guess requirement details.
 
 ## 3. Approve requirements
@@ -51,8 +51,8 @@ Run `python orchestrator.py submit architecture` while architecture is LOCKED.
 Expected: exit code 1 and a `RULE VIOLATION` naming the ACTIVE requirement. Point: skip-ahead is refused.
 
 ## 13. Guard demo
-Pipe `{"tool_name":"run_in_terminal","tool_input":{"command":"git reset --hard"}}` to `python hooks/guard.py`.
-Expected: a denial naming R03 and exit code 2. Point: hooks must be enabled with VS Code `chat.useHooks`.
+Run `/hooks` in Claude Code to confirm the PreToolUse hook is loaded. Then pipe `{"tool_name":"Bash","tool_input":{"command":"git reset --hard"}}` to `python .claude/hooks/guard.py`.
+Expected: a denial naming R03 and exit code 2. Point: run `/hooks` to confirm the PreToolUse hook is loaded; run `/agents` to confirm the 8 agents appear.
 
 ## 14. Tamper demo
 In a disposable copy only, change a submitted artifact and run approve/check.

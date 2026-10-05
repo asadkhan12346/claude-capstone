@@ -1,7 +1,6 @@
 ---
-name: implementation
 description: Implement one approved plan task at a time in the owned app files.
-agent: implementation
+argument-hint: Execute the next approved plan tasks for the active implementation phase.
 ---
 # Phase 5: implementation (agent: implementation)
 
@@ -17,7 +16,7 @@ Read approved requirements, architecture, design review, plan, and contract.
 - `tests/test_todo.py`
 
 ## Scope
-Follow plan task order. Stop if the plan is wrong. Every FR needs a requirement-tagged test using temporary files. Do not weaken tests. Run unittest and compileall and show their real output. Summarize `task id -> files -> FR/NFR ids`. Never edit `sdlc/`, `orchestrator.py`, `hooks/`, `.github/hooks/`; never run approve/reject/reopen.
+Delegate to the `implementation` subagent (Task tool). Follow plan task order. Stop if the plan is wrong. Every FR needs a requirement-tagged test using temporary files. Do not weaken tests. Show real compileall and unittest output. Summarize `task id -> files -> FR/NFR ids`. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/`, `.claude/settings.json`; never run approve/reject/reopen.
 
 ## Finish
-Follow the implementation agent procedure and self-check, run `python orchestrator.py submit implementation`, print exactly `Awaiting human approval. Run: python orchestrator.py approve implementation --by <your-name>`, and stop.
+After the subagent returns, confirm actual compileall and unittest output is shown, run `python orchestrator.py submit implementation`, print exactly `Awaiting human approval. Run: python orchestrator.py approve implementation --by <your-name>`, and stop.

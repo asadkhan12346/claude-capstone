@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import subprocess
@@ -11,7 +12,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import orchestrator
-from hooks import guard
+
+_guard_spec = importlib.util.spec_from_file_location(
+    "guard",
+    ROOT / ".claude" / "hooks" / "guard.py",
+)
+guard = importlib.util.module_from_spec(_guard_spec)  # type: ignore[arg-type]
+_guard_spec.loader.exec_module(guard)  # type: ignore[union-attr]
 
 EXPECTED_PHASES = [
     "requirements",
@@ -58,16 +65,20 @@ def run_audit(root: Path = ROOT) -> int:
     _check("eight agents exist", all((root / p["agent"]).is_file() for p in phases), failures)
     _check("eight prompts exist", all((root / p["prompt"]).is_file() for p in phases), failures)
     skill_names = ["requirements", "verify", "pr"]
-    _check("three skills exist", all((root / ".github" / "skills" / name / "SKILL.md").is_file() for name in skill_names), failures)
-    _check("shared instructions exist", (root / ".github" / "copilot-instructions.md").is_file(), failures)
+    _check("three skills exist", all((root / ".claude" / "skills" / name / "SKILL.md").is_file() for name in skill_names), failures)
+    _check("shared instructions exist", (root / "CLAUDE.md").is_file(), failures)
 
     try:
-        hooks_config = json.loads((root / ".github" / "hooks" / "hooks.json").read_text(encoding="utf-8"))
-        hook_entries = hooks_config["hooks"]["PreToolUse"]
-        hook_wired = any("hooks/guard.py" in entry.get("command", "") for entry in hook_entries)
+        settings = json.loads((root / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        hook_entries = settings["hooks"]["PreToolUse"]
+        hook_wired = any(
+            ".claude/hooks/guard.py" in entry2.get("command", "")
+            for entry in hook_entries
+            for entry2 in entry.get("hooks", [])
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError):
         hook_wired = False
-    _check("hook files exist and registration points to guard", (root / "hooks" / "guard.py").is_file() and hook_wired, failures)
+    _check("hook files exist and registration points to guard", (root / ".claude" / "hooks" / "guard.py").is_file() and hook_wired, failures)
     _check("orchestrator exists", (root / "orchestrator.py").is_file(), failures)
     _check("state exists", (root / "sdlc" / "state.json").is_file(), failures)
 
@@ -90,11 +101,11 @@ def run_audit(root: Path = ROOT) -> int:
         if (root / phase["agent"]).is_file()
     )
     _check("agent Allowed files match manifest", agent_files_match, failures)
-    _check("guard blocks R03", "[R03]" in (guard.evaluate(root, "run_in_terminal", "git reset --hard", []) or ""), failures)
-    _check("guard blocks R06", "[R06]" in (guard.evaluate(root, "run_in_terminal", "python orchestrator.py approve requirements --by agent", []) or ""), failures)
-    _check("guard allows git status", guard.evaluate(root, "run_in_terminal", "git status", []) is None, failures)
+    _check("guard blocks R03", "[R03]" in (guard.evaluate(root, "Bash", "git reset --hard", []) or ""), failures)
+    _check("guard blocks R06", "[R06]" in (guard.evaluate(root, "Bash", "python orchestrator.py approve requirements --by agent", []) or ""), failures)
+    _check("guard allows git status", guard.evaluate(root, "Bash", "git status", []) is None, failures)
     _check("README and runbook exist", (root / "README.md").is_file() and (root / "docs" / "RUNBOOK.md").is_file(), failures)
-    _check("hook README exists", (root / "hooks" / "README.md").is_file(), failures)
+    _check("hook README exists", (root / ".claude" / "hooks" / "README.md").is_file(), failures)
     _check("no live phase artifacts exist", not any((root / path).exists() for path in owned), failures)
     _check("user story exists", (root / "user_story.md").is_file(), failures)
     _check("audit log file exists", (root / "sdlc" / "audit.log.jsonl").is_file(), failures)

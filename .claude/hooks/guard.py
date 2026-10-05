@@ -28,33 +28,6 @@ def _normalise_tool_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.lower())
 
 
-def _walk_paths(value: Any, paths: list[str]) -> None:
-    if isinstance(value, dict):
-        for key, child in value.items():
-            lowered = key.lower()
-            if "path" in lowered or lowered in {
-                "file", "uri", "filename", "target", "destination", "files"
-            }:
-                values = child if isinstance(child, list) else [child]
-                paths.extend(item for item in values if isinstance(item, str))
-            else:
-                _walk_paths(child, paths)
-    elif isinstance(value, list):
-        for child in value:
-            _walk_paths(child, paths)
-
-
-def _walk_strings(value: Any, strings: list[str]) -> None:
-    if isinstance(value, str):
-        strings.append(value)
-    elif isinstance(value, dict):
-        for child in value.values():
-            _walk_strings(child, strings)
-    elif isinstance(value, list):
-        for child in value:
-            _walk_strings(child, strings)
-
-
 def _decode_path(value: str) -> str:
     parsed = urlparse(value)
     if parsed.scheme == "file":
@@ -66,69 +39,48 @@ def _decode_path(value: str) -> str:
     return value.replace("\\", "/")
 
 
-def _collect_paths(tool_input: dict[str, Any]) -> list[str]:
-    paths: list[str] = []
-    _walk_paths(tool_input, paths)
-    patch_text_parts: list[str] = []
-    _walk_strings(tool_input, patch_text_parts)
-    patch_text = "\n".join(patch_text_parts)
-    for match in re.finditer(
-        r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
-    ):
-        paths.append(match.group(1))
-    return list(dict.fromkeys(_decode_path(path) for path in paths))
-
-
 def parse_payload(raw: str) -> tuple[str, str | None, list[str]]:
-    """Parse supported VS Code hook payload forms in one place."""
+    """Parse Claude Code PreToolUse hook payload.
+
+    Claude Code sends exactly three tool shapes:
+      Bash:                  {"tool_name":"Bash","tool_input":{"command":"..."}}
+      Write/Edit/MultiEdit:  {"tool_name":"Write|Edit|MultiEdit","tool_input":{"file_path":"..."}}
+      NotebookEdit:          {"tool_name":"NotebookEdit","tool_input":{"notebook_path":"..."}}
+    Returns (tool_name, command_or_None, [paths]).
+    """
     try:
-        payload = json.loads(raw.lstrip("\ufeff"))
+        payload = json.loads(raw.lstrip("﻿"))
     except (json.JSONDecodeError, TypeError) as exc:
         raise MalformedPayload("input is not valid JSON") from exc
     if not isinstance(payload, dict):
         raise MalformedPayload("payload must be a JSON object")
-    tool = payload.get("tool_name", payload.get("toolName"))
-    tool_input = payload.get("tool_input", payload.get("toolArgs"))
+    tool = payload.get("tool_name")
+    tool_input = payload.get("tool_input")
     if not isinstance(tool, str) or not tool:
         raise MalformedPayload("tool name is missing")
-    if isinstance(tool_input, str):
-        try:
-            tool_input = json.loads(tool_input)
-        except json.JSONDecodeError as exc:
-            raise MalformedPayload("tool arguments are not valid JSON") from exc
     if not isinstance(tool_input, dict):
         raise MalformedPayload("tool input must be an object")
 
-    normalized = _normalise_tool_name(tool)
-    exclusions = ("output", "last", "selection", "kill")
-    shell_tool = any(token in normalized for token in ("terminal", "shell", "bash", "powershell"))
-    shell_tool = shell_tool and not any(token in normalized for token in exclusions)
-    command = None
-    if shell_tool:
-        for key in ("command", "shell_command", "shellCommand", "cmd"):
-            candidate = tool_input.get(key)
-            if isinstance(candidate, str) and candidate.strip():
-                command = candidate
-                break
-        if command is None:
-            raise MalformedPayload("shell tool has no command")
+    normalised = _normalise_tool_name(tool)
 
-    exact_write_tools = {
-        "edit", "write", "create", "multiedit", "notebookedit",
-        "strreplaceeditor", "strreplace", "applypatch",
-    }
-    write_verbs = {
-        "create", "edit", "write", "replace", "insert", "delete", "rename",
-        "move", "remove", "append", "save", "update", "patch",
-    }
-    write_nouns = {"file", "notebook", "directory", "folder"}
-    words = set(re.findall(r"[a-z]+", re.sub(r"([a-z])([A-Z])", r"\1 \2", tool)))
-    words.update(re.findall(r"[a-z]+", normalized))
-    write_tool = normalized in exact_write_tools or bool(words & write_verbs and words & write_nouns)
-    paths = _collect_paths(tool_input)
-    if write_tool and not paths:
-        raise MalformedPayload("write tool has no target path")
-    return tool, command, paths
+    # Shell tool: Bash
+    if normalised == "bash":
+        command = tool_input.get("command")
+        if not isinstance(command, str) or not command.strip():
+            raise MalformedPayload("shell tool has no command")
+        return tool, command, []
+
+    # Write-tool paths: Write, Edit, MultiEdit use file_path; NotebookEdit uses notebook_path
+    write_tools = {"write", "edit", "multiedit", "notebookedit"}
+    if normalised in write_tools:
+        key = "notebook_path" if normalised == "notebookedit" else "file_path"
+        path_val = tool_input.get(key)
+        if not isinstance(path_val, str) or not path_val.strip():
+            raise MalformedPayload("write tool has no target path")
+        return tool, None, [_decode_path(path_val)]
+
+    # Unknown tool: pass through (allow)
+    return tool, None, []
 
 
 def _split_commands(command: str) -> list[str]:
@@ -391,23 +343,13 @@ def evaluate(
 
 
 def _deny(message: str) -> int:
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": message,
-        },
-        "permissionDecision": "deny",
-        "permissionDecisionReason": message,
-    }
-    print(json.dumps(output, ensure_ascii=False))
     print(message, file=sys.stderr)
     return 2
 
 
 def main(root: Path | None = None) -> int:
     """Read one hook event and fail closed for malformed or unsafe requests."""
-    root = root or Path(__file__).resolve().parents[1]
+    root = root or Path(__file__).resolve().parents[2]
     try:
         raw = sys.stdin.buffer.read().decode("utf-8-sig")
         tool, command, paths = parse_payload(raw)

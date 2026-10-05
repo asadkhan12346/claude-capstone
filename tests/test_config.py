@@ -1,4 +1,4 @@
-"""Structural checks for the phase manifest and Copilot configuration."""
+"""Structural checks for the phase manifest and Claude Code configuration."""
 
 from __future__ import annotations
 
@@ -47,8 +47,7 @@ class ConfigurationTests(unittest.TestCase):
             prompt_text = (ROOT / phase["prompt"]).read_text(encoding="utf-8")
             with self.subTest(phase=phase["id"]):
                 self.assertRegex(frontmatter(agent_text), rf"(?m)^name: {re.escape(phase['id'])}$")
-                self.assertRegex(frontmatter(prompt_text), rf"(?m)^name: {re.escape(phase['id'])}$")
-                self.assertRegex(frontmatter(prompt_text), rf"(?m)^agent: {re.escape(phase['id'])}$")
+                self.assertRegex(frontmatter(prompt_text), r"(?m)^description: ")
 
     def test_agent_ownership_and_approval_gate_match_manifest(self) -> None:
         bodies: set[str] = set()
@@ -59,36 +58,33 @@ class ConfigurationTests(unittest.TestCase):
             with self.subTest(phase=phase["id"]):
                 self.assertEqual(allowed_files(text), phase["owns"])
                 self.assertIn(f"Awaiting human approval. Run: python orchestrator.py approve {phase['id']} --by <your-name>", text)
-                for protected in ("sdlc/", "orchestrator.py", "hooks/**", ".github/hooks/**"):
+                for protected in ("sdlc/", "orchestrator.py", ".claude/hooks/**", ".claude/settings.json"):
                     self.assertIn(protected, text)
                 self.assertNotIn(body, bodies)
                 bodies.add(body)
 
     def test_tools_are_scoped_to_roles(self) -> None:
-        requirements = (ROOT / ".github" / "agents" / "requirements.agent.md").read_text(encoding="utf-8")
-        architecture = (ROOT / ".github" / "agents" / "architecture.agent.md").read_text(encoding="utf-8")
-        implementation = (ROOT / ".github" / "agents" / "implementation.agent.md").read_text(encoding="utf-8")
-        review = (ROOT / ".github" / "agents" / "review.agent.md").read_text(encoding="utf-8")
-        verify = (ROOT / ".github" / "agents" / "verify.agent.md").read_text(encoding="utf-8")
-        pr = (ROOT / ".github" / "agents" / "pr.agent.md").read_text(encoding="utf-8")
-        self.assertIn("vscode/askQuestions", requirements)
-        self.assertIn("vscode/askQuestions", architecture)
-        self.assertIn("search/usages", implementation)
-        self.assertIn("search/usages", review)
-        self.assertIn("search/changes", review)
-        self.assertIn("search/changes", pr)
-        self.assertIn("execute/testFailure", verify)
-        self.assertNotIn("execute/testFailure", review)
+        requirements = (ROOT / ".claude" / "agents" / "requirements.md").read_text(encoding="utf-8")
+        architecture = (ROOT / ".claude" / "agents" / "architecture.md").read_text(encoding="utf-8")
+        implementation = (ROOT / ".claude" / "agents" / "implementation.md").read_text(encoding="utf-8")
+        review = (ROOT / ".claude" / "agents" / "review.md").read_text(encoding="utf-8")
+        verify = (ROOT / ".claude" / "agents" / "verify.md").read_text(encoding="utf-8")
+        pr = (ROOT / ".claude" / "agents" / "pr.md").read_text(encoding="utf-8")
+        self.assertNotIn("Bash", frontmatter(requirements))
+        self.assertNotIn("Bash", frontmatter(architecture))
+        self.assertIn("Bash", frontmatter(implementation))
+        self.assertIn("Bash", frontmatter(review))
+        self.assertIn("Bash", frontmatter(verify))
+        self.assertIn("Bash", frontmatter(pr))
 
     def test_skills_and_hook_registration(self) -> None:
         for skill in ("requirements", "verify", "pr"):
-            text = (ROOT / ".github" / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+            text = (ROOT / ".claude" / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(skill=skill):
-                self.assertRegex(frontmatter(text), r"(?m)^user-invocable: false$")
-        hook = json.loads((ROOT / ".github" / "hooks" / "hooks.json").read_text(encoding="utf-8"))
-        entry = hook["hooks"]["PreToolUse"][0]
-        self.assertIn("hooks/guard.py", entry["command"])
-        self.assertIn("hooks/guard.py", entry["windows"])
+                self.assertRegex(frontmatter(text), rf"(?m)^name: {re.escape(skill)}$")
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        entry = settings["hooks"]["PreToolUse"][0]
+        self.assertIn(".claude/hooks/guard.py", entry["hooks"][0]["command"])
 
     def test_contract_phase_rows_match_manifest(self) -> None:
         contract = (ROOT / "docs" / "CONTRACT.md").read_text(encoding="utf-8")

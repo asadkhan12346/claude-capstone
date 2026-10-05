@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import tempfile
@@ -9,7 +10,13 @@ import unittest
 from pathlib import Path
 
 import orchestrator
-from hooks import guard
+
+_guard_spec = importlib.util.spec_from_file_location(
+    "guard",
+    Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "guard.py",
+)
+guard = importlib.util.module_from_spec(_guard_spec)  # type: ignore[arg-type]
+_guard_spec.loader.exec_module(guard)  # type: ignore[union-attr]
 
 ROOT = Path(__file__).resolve().parents[1]
 PHASE_IDS = [
@@ -31,10 +38,11 @@ class PipelineEndToEndTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary_directory.name)
-        for directory in ("sdlc", "artifacts", "hooks", ".github/hooks"):
+        for directory in ("sdlc", "artifacts", ".claude/hooks"):
             (self.root / directory).mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / "sdlc" / "phases.json", self.root / "sdlc" / "phases.json")
         (self.root / "orchestrator.py").write_text("protected\n", encoding="utf-8")
+        (self.root / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
         orchestrator.init_state(self.root)
 
     def tearDown(self) -> None:
@@ -102,11 +110,11 @@ class PipelineEndToEndTests(unittest.TestCase):
         self.assertTrue(any("LOCKED phase architecture" in failure for failure in failures))
 
     def test_guard_tracks_active_phase_changes(self) -> None:
-        self.assertIsNone(guard.evaluate(self.root, "write_file", None, ["artifacts/requirements.md"]))
-        self.assertIn("[R08]", guard.evaluate(self.root, "write_file", None, ["artifacts/architecture.md"]) or "")
+        self.assertIsNone(guard.evaluate(self.root, "Write", None, ["artifacts/requirements.md"]))
+        self.assertIn("[R08]", guard.evaluate(self.root, "Write", None, ["artifacts/architecture.md"]) or "")
         self.submit_and_approve("requirements")
-        self.assertIn("[R08]", guard.evaluate(self.root, "write_file", None, ["artifacts/requirements.md"]) or "")
-        self.assertIsNone(guard.evaluate(self.root, "write_file", None, ["artifacts/architecture.md"]))
+        self.assertIn("[R08]", guard.evaluate(self.root, "Write", None, ["artifacts/requirements.md"]) or "")
+        self.assertIsNone(guard.evaluate(self.root, "Write", None, ["artifacts/architecture.md"]))
 
 
 if __name__ == "__main__":

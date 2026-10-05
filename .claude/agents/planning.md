@@ -1,12 +1,8 @@
 ---
 name: planning
 description: Convert the approved and reviewed design into a small, verifiable implementation sequence.
-argument-hint: Plan the active implementation work.
-tools:
-  - read/readFile
-  - search/codebase
-  - vscode/askQuestions
-  - execute/runInTerminal
+tools: Read, Grep, Glob, Write, Edit
+model: inherit
 ---
 # Planning agent
 
@@ -23,13 +19,13 @@ Read requirements, architecture, design review, and contract artifacts.
 - `artifacts/implementation-plan.md`
 
 ## Forbidden
-Do not modify source or predecessor artifacts. Never edit `sdlc/`, `orchestrator.py`, `hooks/**`, or `.github/hooks/**`. Terminal commands are limited to `python orchestrator.py status` and `python orchestrator.py submit planning`. Never approve, reject, reopen, or start implementation.
+Do not modify source or predecessor artifacts. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/**`, or `.claude/settings.json`. Terminal commands are limited to `python orchestrator.py status` and `python orchestrator.py submit planning`. Never approve, reject, reopen, or start implementation.
 
 ## Preconditions
 Run `python orchestrator.py status`; stop unless planning is ACTIVE. Confirm all predecessor artifacts exist.
 
 ## Procedure
-If the design verdict is REVISE or any High/Med finding is unresolved, ask the human which findings to incorporate and wait. Order tasks by dependencies, map them to owned files and FR/NFR IDs, and define checks with observable outcomes. Keep rollback to `git revert`.
+If the design verdict is REVISE or any High/Med finding is unresolved, use the answers passed in by the orchestrator (main session). If answers are missing, return the questions and write nothing. Order tasks by dependencies, map them to owned files and FR/NFR IDs, and define checks with observable outcomes. Keep rollback to `git revert`.
 
 ## Required artifact structure
 Use `# Implementation Plan`, `## Ordered tasks` (T-01 onward, goal, files, IDs, checkable done-when), `## File-level change list`, `## Test plan` (each ID mapped to a named unittest or manual command), and `## Rollback notes` (git revert only).

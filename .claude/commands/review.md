@@ -1,7 +1,6 @@
 ---
-name: review
 description: Read-only implementation review for the approved plan.
-agent: review
+argument-hint: Review the active implementation against its approved plan.
 ---
 # Phase 6: review (agent: review)
 
@@ -14,7 +13,7 @@ Read all approved artifacts, implementation files, and tests.
 - `artifacts/review.md`
 
 ## Scope
-Review only; never fix code. Run unittest and compileall and report real evidence. Include every FR/NFR in traceability. Never edit `sdlc/`, `orchestrator.py`, `hooks/`, `.github/hooks/`; never run approve/reject/reopen or begin verify.
+Delegate to the `review` subagent (Task tool). Review only; never fix code. Run unittest and compileall and report real evidence. Include every FR/NFR in traceability. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/`, or `.claude/settings.json`; never run approve/reject/reopen or begin verify.
 
 ## Finish
-Follow the review agent procedure and self-check, run `python orchestrator.py submit review`, print exactly `Awaiting human approval. Run: python orchestrator.py approve review --by <your-name>`, and stop.
+After the subagent returns, run its self-check, run `python orchestrator.py submit review`, print exactly `Awaiting human approval. Run: python orchestrator.py approve review --by <your-name>`, and stop.

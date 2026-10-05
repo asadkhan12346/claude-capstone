@@ -1,7 +1,6 @@
 ---
 name: requirements
-description: Elicit complete, testable requirements without making product decisions.
-user-invocable: false
+description: Elicit complete, testable requirements without making product decisions. Use this skill when running the requirements phase (/requirements).
 ---
 # Requirements Method
 

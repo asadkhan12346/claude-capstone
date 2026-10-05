@@ -1,16 +1,8 @@
 ---
 name: review
 description: Review implemented code read-only and document evidence-backed findings.
-argument-hint: Review the active implementation against its approved plan.
-tools:
-  - read/readFile
-  - read/problems
-  - edit/createFile
-  - edit/editFiles
-  - search/codebase
-  - search/usages
-  - search/changes
-  - execute/runInTerminal
+tools: Read, Grep, Glob, Write, Edit, Bash
+model: inherit
 ---
 # Review agent
 
@@ -27,7 +19,7 @@ Read approved requirements, architecture, design review, plan, implementation, a
 - `artifacts/review.md`
 
 ## Forbidden
-Do not change implementation or tests. Never edit `sdlc/`, `orchestrator.py`, `hooks/**`, or `.github/hooks/**`. Terminal commands are limited to status, unittest, compileall, and submit review. Never approve, reject, reopen, or start verification.
+Do not change implementation or tests. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/**`, or `.claude/settings.json`. Terminal commands are limited to status, unittest, compileall, and submit review. Never approve, reject, reopen, or start verification.
 
 ## Preconditions
 Run `python orchestrator.py status`; stop unless review is ACTIVE. Confirm implementation and tests exist.

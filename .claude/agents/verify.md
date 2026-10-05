@@ -1,16 +1,8 @@
 ---
 name: verify
 description: Independently execute requirement-by-requirement verification and report raw evidence.
-argument-hint: Verify the active release candidate without changing code.
-tools:
-  - read/readFile
-  - read/problems
-  - edit/createFile
-  - edit/editFiles
-  - search/codebase
-  - execute/runInTerminal
-  - execute/getTerminalOutput
-  - execute/testFailure
+tools: Read, Grep, Glob, Write, Edit, Bash
+model: inherit
 ---
 # Verify agent
 
@@ -27,7 +19,7 @@ Read approved requirements, plan, review, implementation, and tests.
 - `artifacts/verify.md`
 
 ## Forbidden
-Do not edit code, tests, or other outputs. Never edit `sdlc/`, `orchestrator.py`, `hooks/**`, or `.github/hooks/**`. Terminal commands are limited to status, read-only inspection, Python version, unittest, compileall, safe temporary-path checks, git status, and submit verify. Never approve, reject, reopen, or begin PR work.
+Do not edit code, tests, or other outputs. Never edit `sdlc/`, `orchestrator.py`, `.claude/hooks/**`, or `.claude/settings.json`. Terminal commands are limited to status, read-only inspection, Python version, unittest, compileall, safe temporary-path checks, git status, and submit verify. Never approve, reject, reopen, or begin PR work.
 
 ## Preconditions
 Run `python orchestrator.py status`; stop unless verify is ACTIVE. Confirm prior artifacts and implementation exist.

@@ -1,28 +1,54 @@
-# SDLC Guard
+# PreToolUse Guard
 
-The guard is registered as a VS Code `PreToolUse` hook in `.github/hooks/hooks.json`. Enable `chat.useHooks` in VS Code settings. It reads one JSON payload from stdin, prints nothing for an allowed operation, and emits a structured denial to stdout/stderr with exit code 2 when blocked. Malformed input fails closed.
+`.claude/hooks/guard.py` is a fail-closed PreToolUse hook registered in `.claude/settings.json`. Claude Code invokes it before every `Bash`, `Write`, `Edit`, `MultiEdit`, and `NotebookEdit` tool call.
 
-| Rule | Blocks | Safe alternative |
+Run `/hooks` in Claude Code to confirm the PreToolUse hook is loaded.
+
+## Rules
+
+| ID | Description | What it blocks |
 |---|---|---|
-| R01 | Recursive deletion of root, home, repository, `.git`, `.`/`..`, or bare wildcard | Target one disposable path |
-| R02 | Filesystem formatting, `dd` to a device, writes to `/dev/sd*`, or recursive mode 777 | Use a targeted reversible operation |
-| R03 | Hard reset, forced clean, destructive checkout/restore, deleting main/master, history filtering, or rebasing onto main/master | Inspect changes and use a narrow reversible operation |
-| R04 | Force push, `+refspec`, or push to main/master | Push a feature branch without force |
-| R05 | Hook/verification bypasses and common piped-shell execution | Use reviewed commands and normal hooks |
-| R06 | Agent invocation of approve/reject/reopen | A human uses an interactive terminal |
-| R07 | Writes to protected pipeline files/directories | Write only an active phase-owned file |
-| R08 | Writes to files owned by a phase other than ACTIVE | Check orchestrator status and write only active outputs |
+| R01 | Recursive deletion of a dangerous target | `rm -rf /`, `rm -rf .`, `rm -rf ~`, etc. |
+| R02 | Filesystem destruction or unsafe permissions | `mkfs`, `dd of=/dev/sd*`, `chmod -R 777` |
+| R03 | Destructive Git history or working-tree operation | `git reset --hard`, `git clean -f`, `git restore .`, `git checkout .`, `filter-branch` |
+| R04 | Force push or push to a protected branch | `git push --force`, `git push -f`, `git push origin main` |
+| R05 | Verification or shell safety bypass | `--no-verify`, `curl | sh`, `base64 -d | sh`, `eval | sh` |
+| R06 | Agent attempted a human-only approval action | `python orchestrator.py approve/reject/reopen` |
+| R07 | Write to a protected pipeline file | Writes to `sdlc/`, `orchestrator.py`, `.claude/hooks/`, `.claude/settings.json` |
+| R08 | Write outside the ACTIVE phase ownership | Writes to another phase's owned files |
 
-## Manual check
+## Exit behavior
 
-From the repository root, run:
+- **Exit 0**: operation allowed (no output).
+- **Exit 2**: operation blocked; the denial message is printed to stderr.
+- **Fail closed**: any exception or malformed input blocks the call with a FAIL-CLOSED message.
 
-```powershell
-'{"tool_name":"run_in_terminal","tool_input":{"command":"git reset --hard"}}' | python hooks/guard.py
+## Limitations
+
+- Shell parsing is necessarily incomplete; a determined user can construct payloads that evade the regex-based rules.
+- Approval is bypassable by a user who edits `sdlc/state.json` directly; the hook cannot prevent filesystem access.
+- The hook is not active during `python orchestrator.py approve/reject/reopen` because those run in a plain terminal, not through Claude Code tools.
+- A human may unload the hook by editing `.claude/settings.json`. Agents must never edit `.claude/hooks/guard.py` or `.claude/settings.json` to bypass a denial.
+
+## Registration
+
+The hook is wired in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {"type": "command",
+           "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+           "timeout": 15}
+        ]
+      }
+    ]
+  }
+}
 ```
 
-Expected: JSON denial includes `[R03]`; exit code is 2. A benign `git status` payload should be allowed with no output and exit code 0.
-
-## Disable hook
-
-A human may disable the hook by changing VS Code's `chat.useHooks` setting. Agents must never edit `.github/hooks/hooks.json` or turn the hook off to bypass a denial.
+Run `/hooks` in Claude Code to confirm the hook is active. Run `/agents` to confirm the 8 agents appear.

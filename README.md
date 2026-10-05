@@ -1,10 +1,10 @@
-# Agentic SDLC with GitHub Copilot
+# Agentic SDLC with Claude Code
 
-This repository demonstrates an eight-phase, human-gated software delivery pipeline driven by GitHub Copilot custom agents. The input is one `user_story.md`; each phase reads approved predecessor outputs, writes only its declared files, submits them, and waits for a human decision.
+This repository demonstrates an eight-phase, human-gated software delivery pipeline driven by Claude Code custom agents. The input is one `user_story.md`; each phase reads approved predecessor outputs, writes only its declared files, submits them, and waits for a human decision.
 
 ## What it demonstrates
 
-- Narrow role agents, phase-specific prompts, and reusable skills.
+- Narrow role agents, phase-specific slash commands, and reusable skills.
 - A local state machine with submit checks, human confirmation, SHA-256 drift detection, and JSONL audit events.
 - A PreToolUse guard for selected dangerous shell commands and writes outside current phase ownership.
 - A final release phase with separate preparation and explicitly authorized PR-opening stages.
@@ -40,12 +40,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-	Story[user_story.md] --> Agents[Eight narrow agents and prompts]
+	Story[user_story.md] --> Agents[Eight narrow agents and commands]
 	Agents --> Owned[Phase-owned outputs]
 	Owned --> Orch[orchestrator.py]
 	Orch --> State[sdlc/state.json]
 	Orch --> Audit[sdlc/audit.log.jsonl]
-	Hook[PreToolUse hooks/guard.py] --> Scope[Protected and active-phase write policy]
+	Hook[PreToolUse .claude/hooks/guard.py] --> Scope[Protected and active-phase write policy]
 	State --> Hook
 	Manifest[sdlc/phases.json] --> Orch
 	Manifest --> Hook
@@ -54,7 +54,7 @@ flowchart TB
 
 ## Who does what
 
-| Phase | Agent | Prompt | Output |
+| Phase | Agent | Command | Output |
 |---|---|---|---|
 | requirements | requirements | `/requirements` | `artifacts/requirements.md` |
 | architecture | architecture | `/architecture` | `artifacts/architecture.md` |
@@ -65,7 +65,7 @@ flowchart TB
 | verify | verify | `/verify` | `artifacts/verify.md` |
 | PR | pr | `/pr` | `artifacts/pr.md`, `CHANGELOG.md`, then optional Stage B |
 
-Each agent and prompt is under `.github/agents/` and `.github/prompts/`. The requirements, verify, and PR methods are under `.github/skills/`.
+Each agent and command is under `.claude/agents/` and `.claude/commands/`. The requirements, verify, and PR methods are under `.claude/skills/`.
 
 ## Controls
 
@@ -73,7 +73,7 @@ Each agent and prompt is under `.github/agents/` and `.github/prompts/`. The req
 |---|---|---|
 | Orchestrator | Valid phase order, owned artifact presence, traceability, human TTY confirmation, hashes, audit entries | Resistance to a determined local user editing code/state directly |
 | PreToolUse guard | Selected destructive commands, approval commands, protected paths, non-active owned writes | Complete shell parsing or protection when hooks are disabled/timed out |
-| Agent and prompt scope | Role-specific instructions and allowed files | Model behavior outside effective tool enforcement |
+| Agent and command scope | Role-specific instructions and allowed files | Model behavior outside effective tool enforcement |
 
 Submit rules include defined FR/NFR IDs, no undefined references, and required phase checks (requirements FR/open questions, design verdict, review/PR complete ID coverage, and verification code fence). Hashes cover only each phase's owned files.
 
@@ -81,14 +81,14 @@ Submit rules include defined FR/NFR IDs, no undefined references, and required p
 
 ```text
 .
-├── .github/agents/          # Eight phase agents
-├── .github/hooks/           # VS Code hook registration
-├── .github/prompts/         # Eight slash commands
-├── .github/skills/          # Requirements, verification, PR methods
+├── .claude/agents/          # Eight phase agents
+├── .claude/commands/        # Eight slash commands
+├── .claude/hooks/           # Guard and its operator notes
+├── .claude/settings.json    # Hook registration and permissions
+├── .claude/skills/          # Requirements, verification, PR methods
 ├── artifacts/               # .gitkeep now; phase outputs after live run
 ├── docs/CONTRACT.md         # Single source of truth
 ├── docs/RUNBOOK.md
-├── hooks/                   # Guard and its operator notes
 ├── orchestrator.py
 ├── sdlc/phases.json         # Manifest; state/audit initialized at runtime
 ├── tests/                   # Infrastructure tests; app tests after live run
@@ -98,7 +98,7 @@ Submit rules include defined FR/NFR IDs, no undefined references, and required p
 
 ## Quick start
 
-Requirements: Python 3.11+, VS Code Copilot Chat with custom agents/prompts/skills/hooks enabled, and `chat.useHooks` enabled. Network access is not used by the app. GitHub CLI, an `origin` remote, and authentication are needed only for PR Stage B.
+Requirements: Python 3.11+, Claude Code CLI or desktop app. Network access is not used by the app. GitHub CLI, an `origin` remote, and authentication are needed only for PR Stage B.
 
 ```powershell
 python orchestrator.py status
@@ -114,7 +114,7 @@ The audit is for the clean pre-run state and intentionally fails after live phas
 
 ```powershell
 python orchestrator.py submit architecture
-'{"tool_name":"run_in_terminal","tool_input":{"command":"git reset --hard"}}' | python hooks/guard.py
+echo '{"tool_name":"Bash","tool_input":{"command":"git reset --hard"}}' | python .claude/hooks/guard.py
 python orchestrator.py check
 ```
 

@@ -1,7 +1,6 @@
 ---
 name: pr
-description: Prepare traceable release artifacts and follow a human-authorized GitHub PR sequence.
-user-invocable: false
+description: Prepare traceable release artifacts and follow a human-authorized GitHub PR sequence. Use this skill when running the pr phase (/pr).
 ---
 # PR Release Method
 

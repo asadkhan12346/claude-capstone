@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class DocumentationTests(unittest.TestCase):
     def test_documented_files_and_markdown_links_resolve(self) -> None:
-        for markdown in (ROOT / "README.md", ROOT / "docs" / "CONTRACT.md", ROOT / "docs" / "RUNBOOK.md", ROOT / "hooks" / "README.md"):
+        for markdown in (ROOT / "README.md", ROOT / "docs" / "CONTRACT.md", ROOT / "docs" / "RUNBOOK.md", ROOT / ".claude" / "hooks" / "README.md"):
             text = markdown.read_text(encoding="utf-8")
             for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)", text):
                 if "://" in target or target.startswith("#"):

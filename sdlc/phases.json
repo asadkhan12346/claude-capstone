@@ -3,36 +3,36 @@
     {
       "id": "requirements",
       "order": 1,
-      "agent": ".github/agents/requirements.agent.md",
-      "prompt": ".github/prompts/requirements.prompt.md",
+      "agent": ".claude/agents/requirements.md",
+      "prompt": ".claude/commands/requirements.md",
       "owns": ["artifacts/requirements.md"]
     },
     {
       "id": "architecture",
       "order": 2,
-      "agent": ".github/agents/architecture.agent.md",
-      "prompt": ".github/prompts/architecture.prompt.md",
+      "agent": ".claude/agents/architecture.md",
+      "prompt": ".claude/commands/architecture.md",
       "owns": ["artifacts/architecture.md"]
     },
     {
       "id": "design-review",
       "order": 3,
-      "agent": ".github/agents/design-review.agent.md",
-      "prompt": ".github/prompts/design-review.prompt.md",
+      "agent": ".claude/agents/design-review.md",
+      "prompt": ".claude/commands/design-review.md",
       "owns": ["artifacts/design-review.md"]
     },
     {
       "id": "planning",
       "order": 4,
-      "agent": ".github/agents/planning.agent.md",
-      "prompt": ".github/prompts/planning.prompt.md",
+      "agent": ".claude/agents/planning.md",
+      "prompt": ".claude/commands/planning.md",
       "owns": ["artifacts/implementation-plan.md"]
     },
     {
       "id": "implementation",
       "order": 5,
-      "agent": ".github/agents/implementation.agent.md",
-      "prompt": ".github/prompts/implementation.prompt.md",
+      "agent": ".claude/agents/implementation.md",
+      "prompt": ".claude/commands/implementation.md",
       "owns": [
         "todo/__init__.py",
         "todo/app.py",
@@ -43,22 +43,22 @@
     {
       "id": "review",
       "order": 6,
-      "agent": ".github/agents/review.agent.md",
-      "prompt": ".github/prompts/review.prompt.md",
+      "agent": ".claude/agents/review.md",
+      "prompt": ".claude/commands/review.md",
       "owns": ["artifacts/review.md"]
     },
     {
       "id": "verify",
       "order": 7,
-      "agent": ".github/agents/verify.agent.md",
-      "prompt": ".github/prompts/verify.prompt.md",
+      "agent": ".claude/agents/verify.md",
+      "prompt": ".claude/commands/verify.md",
       "owns": ["artifacts/verify.md"]
     },
     {
       "id": "pr",
       "order": 8,
-      "agent": ".github/agents/pr.agent.md",
-      "prompt": ".github/prompts/pr.prompt.md",
+      "agent": ".claude/agents/pr.md",
+      "prompt": ".claude/commands/pr.md",
       "owns": ["artifacts/pr.md", "CHANGELOG.md"]
     }
   ],
@@ -67,7 +67,7 @@
     "sdlc/audit.log.jsonl",
     "sdlc/phases.json",
     "orchestrator.py",
-    "hooks/",
-    ".github/hooks/"
+    ".claude/hooks/",
+    ".claude/settings.json"
   ]
 }
