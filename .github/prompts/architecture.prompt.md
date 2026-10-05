@@ -1,8 +1,20 @@
 ---
-description: "Design the system from approved requirements and write architecture.md."
-agent: architect
-argument-hint: "Identify the approved requirements to use."
+name: architecture
+description: Design the system for the approved requirements.
+agent: architecture
 ---
-Read the human-approved [requirements.md](../../docs/requirements.md). Describe components, boundaries, data flow, interfaces, failure handling, and security choices in [architecture.md](../../docs/architecture.md).
+# Phase 2: architecture (agent: architecture)
 
-Do not implement code or change requirements. Present the architecture for human approval before design review.
+STEP 1: Run `python orchestrator.py status`. If architecture is not ACTIVE, STOP and tell the human.
+
+## Read
+Read approved `artifacts/requirements.md` and `docs/CONTRACT.md`.
+
+## Write (only these files)
+- `artifacts/architecture.md`
+
+## Scope
+No code. Map every FR/NFR to components, explain data/control flow and decisions, and include a fenced Mermaid diagram. Never edit `sdlc/`, `orchestrator.py`, `hooks/`, `.github/hooks/`; never run approve/reject/reopen or begin phase 3.
+
+## Finish
+Follow the architecture agent procedure and self-check, run `python orchestrator.py submit architecture`, print exactly `Awaiting human approval. Run: python orchestrator.py approve architecture --by <your-name>`, and stop.

@@ -1,6 +1,0 @@
-[project]
-name = "fixture-normal"
-description = "Normal fixture project"
-
-[project.scripts]
-doc-sync = "fixture_normal.cli:main"

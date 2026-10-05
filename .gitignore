@@ -1,20 +1,17 @@
-# Python bytecode and caches
 __pycache__/
 *.py[cod]
-.pytest_cache/
-
-# Virtual environments
 .venv/
-venv/
-env/
-
-# Secrets and local environment
-.env
-.env.*
-
-# Build and test artifacts
 build/
 dist/
 *.egg-info/
-.coverage
+.coverage*
 htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+.env.*
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
