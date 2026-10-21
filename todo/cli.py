@@ -1,150 +1,143 @@
-"""Command-line adapter for the Todo application."""
+"""
+todo.cli — CLI entry point for the personal todo-list manager.
 
-from __future__ import annotations
+Standard library only; requires Python 3.11+ (NFR-001).
+No network calls or secrets (NFR-003).
 
+Canonical invocation (F-01): ``python -m todo.cli <subcommand> [args]``
+"""
+
+import argparse
+import pathlib
 import sys
-import unicodedata
-from collections.abc import Sequence
-from typing import TextIO
 
 from todo.app import (
-    CorruptStorageError,
-    EmptyTitleError,
-    InvalidTitleError,
-    StorageError,
-    TaskNotFoundError,
-    TodoApp,
-    TodoError,
+    create_task,
+    delete_task,
+    list_tasks,
+    mark_completed,
+    mark_pending,
+    update_task,
 )
 
-EXIT_OK = 0
-EXIT_ERROR = 1
-EXIT_USAGE = 2
-USAGE = (
-    'USAGE:\n'
-    '  python -m todo.cli add "<title>"\n'
-    '  python -m todo.cli list\n'
-    '  python -m todo.cli done <id>\n'
-    '  python -m todo.cli reopen <id>\n'
-    '  python -m todo.cli delete <id>'
-)
-_BIDI_CONTROLS = {
-    0x061C,
-    0x200E,
-    0x200F,
-    *range(0x202A, 0x202F),
-    *range(0x2066, 0x206A),
-}
+# Default storage path in user's home directory (F-05)
+DEFAULT_STORAGE_PATH: pathlib.Path = pathlib.Path.home() / ".todo.json"
 
 
-def _configure_utf8(stream: TextIO) -> None:
-    if (stream is sys.stdout or stream is sys.stderr) and hasattr(stream, "reconfigure"):
-        stream.reconfigure(encoding="utf-8")
+def main() -> None:
+    """
+    CLI entry point — parse arguments and dispatch to the app layer (FR-018).
 
+    Success and informational messages are printed to stdout (exit 0).
+    Error messages are printed to stderr (exit 1).
+    """
+    parser = argparse.ArgumentParser(
+        prog="todo",
+        description="Personal todo list manager",
+    )
+    parser.add_argument(
+        "--storage",
+        type=pathlib.Path,
+        default=DEFAULT_STORAGE_PATH,
+        help="Path to the JSON storage file (default: ~/.todo.json)",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-def _display_title(title: str) -> str:
-    output: list[str] = []
-    for character in title:
-        codepoint = ord(character)
-        if character == "\n":
-            output.append("\\n")
-        elif character == "\r":
-            output.append("\\r")
-        elif character == "\t":
-            output.append("\\t")
-        elif (
-            unicodedata.category(character) in {"Cc", "Zl", "Zp"}
-            or codepoint in _BIDI_CONTROLS
-        ):
-            output.append(f"\\x{codepoint:02x}" if codepoint <= 0xFF else f"\\u{codepoint:04x}")
+    # --- create ---
+    create_parser = subparsers.add_parser("create", help="Create a new task")
+    create_parser.add_argument("title", type=str, help="Task title (required, non-empty)")
+    create_parser.add_argument(
+        "--description",
+        type=str,
+        default="",
+        help="Task description (default: empty string)",
+    )
+
+    # --- list ---
+    list_parser = subparsers.add_parser("list", help="List all tasks")
+    list_parser.add_argument(
+        "--status",
+        choices=["pending", "completed"],
+        default=None,
+        help="Filter tasks by status (pending or completed)",
+    )
+
+    # --- update ---
+    update_parser = subparsers.add_parser(
+        "update", help="Update a task's title or description"
+    )
+    update_parser.add_argument("task_id", type=int, help="ID of the task to update")
+    update_parser.add_argument(
+        "--title", type=str, default=None, help="New title (optional)"
+    )
+    update_parser.add_argument(
+        "--description", type=str, default=None, help="New description (optional)"
+    )
+
+    # --- delete ---
+    delete_parser = subparsers.add_parser("delete", help="Delete a task by ID")
+    delete_parser.add_argument("task_id", type=int, help="ID of the task to delete")
+
+    # --- complete ---
+    complete_parser = subparsers.add_parser(
+        "complete", help="Mark a task as completed"
+    )
+    complete_parser.add_argument(
+        "task_id", type=int, help="ID of the task to mark as completed"
+    )
+
+    # --- pending ---
+    pending_parser = subparsers.add_parser(
+        "pending", help="Mark a task as pending"
+    )
+    pending_parser.add_argument(
+        "task_id", type=int, help="ID of the task to mark as pending"
+    )
+
+    args = parser.parse_args()
+    storage = args.storage
+
+    # Dispatch to app layer
+    if args.command == "create":
+        result = create_task(storage, args.title, args.description)
+    elif args.command == "list":
+        result = list_tasks(storage, args.status)
+    elif args.command == "update":
+        result = update_task(
+            storage, args.task_id, title=args.title, description=args.description
+        )
+    elif args.command == "delete":
+        result = delete_task(storage, args.task_id)
+    elif args.command == "complete":
+        result = mark_completed(storage, args.task_id)
+    elif args.command == "pending":
+        result = mark_pending(storage, args.task_id)
+    else:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    # Output and exit codes (FR-018)
+    if args.command == "list":
+        if result["success"] and result["tasks"]:
+            for task in result["tasks"]:
+                print(f"[{task['id']}] {task['title']} ({task['status']})")
+                print(f"    {task['description']}")
+            print(result["message"])
+            sys.exit(0)
+        elif result["success"]:
+            print(result["message"])
+            sys.exit(0)
         else:
-            output.append(character)
-    return "".join(output)
-
-
-def _write_usage(stderr: TextIO) -> None:
-    print(USAGE, file=stderr)
-
-
-def main(
-    argv: Sequence[str] | None = None,
-    stdout: TextIO | None = None,
-    stderr: TextIO | None = None,
-    app: TodoApp | None = None,
-) -> int:
-    """Run one CLI operation and return its exit status."""
-    output_stream = sys.stdout if stdout is None else stdout
-    error_stream = sys.stderr if stderr is None else stderr
-    _configure_utf8(output_stream)
-    _configure_utf8(error_stream)
-    arguments = list(sys.argv[1:] if argv is None else argv)
-    application = TodoApp() if app is None else app
-
-    if not arguments:
-        _write_usage(error_stream)
-        return EXIT_USAGE
-
-    command = arguments[0]
-    if command == "add" and len(arguments) == 2:
-        try:
-            task = application.add_task(arguments[1])
-        except (EmptyTitleError, InvalidTitleError) as exc:
-            print(f"Error: {exc}", file=error_stream)
-            return EXIT_ERROR
-        except CorruptStorageError:
-            print("Error: task storage is corrupt.", file=error_stream)
-            return EXIT_ERROR
-        except StorageError:
-            print("Error: task storage could not be accessed.", file=error_stream)
-            return EXIT_ERROR
-        print(f"Added: {task.id} [open] {_display_title(task.title)}", file=output_stream)
-        return EXIT_OK
-
-    if command == "list" and len(arguments) == 1:
-        try:
-            tasks = application.list_tasks()
-        except CorruptStorageError:
-            print("Error: task storage is corrupt.", file=error_stream)
-            return EXIT_ERROR
-        except StorageError:
-            print("Error: task storage could not be accessed.", file=error_stream)
-            return EXIT_ERROR
-        if not tasks:
-            print("No tasks.", file=output_stream)
+            print(result["message"], file=sys.stderr)
+            sys.exit(1)
+    else:
+        if result["success"]:
+            print(result["message"])
+            sys.exit(0)
         else:
-            for task in tasks:
-                print(
-                    f"{task.id} [{task.status}] {_display_title(task.title)}",
-                    file=output_stream,
-                )
-        return EXIT_OK
-
-    if command in {"done", "reopen", "delete"} and len(arguments) == 2:
-        try:
-            if command == "done":
-                _, changed = application.complete_task(arguments[1])
-                if not changed:
-                    print(f"Task {arguments[1]} is already done.", file=output_stream)
-            elif command == "reopen":
-                _, changed = application.reopen_task(arguments[1])
-                if not changed:
-                    print(f"Task {arguments[1]} is already open.", file=output_stream)
-            else:
-                application.delete_task(arguments[1])
-        except TaskNotFoundError as exc:
-            print(f"Error: task {exc.task_id} not found.", file=error_stream)
-            return EXIT_ERROR
-        except CorruptStorageError:
-            print("Error: task storage is corrupt.", file=error_stream)
-            return EXIT_ERROR
-        except StorageError:
-            print("Error: task storage could not be accessed.", file=error_stream)
-            return EXIT_ERROR
-        return EXIT_OK
-
-    _write_usage(error_stream)
-    return EXIT_USAGE
+            print(result["message"], file=sys.stderr)
+            sys.exit(1)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

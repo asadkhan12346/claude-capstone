@@ -3,77 +3,77 @@
     "requirements": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/requirements.md": "9f0a0e65deedbde831c842b924ec5b4778e5d8940cca9230c24e68d0a7c01097"
+        "artifacts/requirements.md": "0683bd3ab65b89203e967eac2fc3bc41c630bf26022231b26db72531928271e2"
       },
-      "approvedBy": "Mohd Asad Khan",
-      "approvedAt": "2026-10-05T12:07:18.534489+00:00",
+      "approvedBy": "Asad Khan",
+      "approvedAt": "2026-10-21T19:54:58.617283+00:00",
       "rejectionReason": null
     },
     "architecture": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/architecture.md": "353a3091def07cd08602973453b23b95000aedb279c05b035caba5c5b66e0951"
+        "artifacts/architecture.md": "a76f64f72d405b45261b6fa9946f775fb6ff5f8601cbcf90cfd83d0daa2566bb"
       },
       "approvedBy": "Asad Khan",
-      "approvedAt": "2026-10-05T12:19:06.460654+00:00",
+      "approvedAt": "2026-10-21T19:57:43.319477+00:00",
       "rejectionReason": null
     },
     "design-review": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/design-review.md": "287294da43817b36502f58acb222dbd669887272efc5bd09a7253450749e8342"
+        "artifacts/design-review.md": "433042d16a2299f938431997957717fb7d9adabf2aff60059c90e96336c700cd"
       },
       "approvedBy": "Asad Khan",
-      "approvedAt": "2026-10-05T12:27:42.237861+00:00",
+      "approvedAt": "2026-10-21T20:16:51.701588+00:00",
       "rejectionReason": null
     },
     "planning": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/implementation-plan.md": "fa512795c094828ddd5fecdda5a57a57b071f50058c818469ac05cd2b8e12a71"
+        "artifacts/implementation-plan.md": "ca2df3aef9f0b71636825bd994302eaaf956c4490d588164d2d31a4c142ebbac"
       },
-      "approvedBy": "Asad Khan ",
-      "approvedAt": "2026-10-05T12:31:21.892033+00:00",
+      "approvedBy": "Asad Khan",
+      "approvedAt": "2026-10-21T20:23:13.154719+00:00",
       "rejectionReason": null
     },
     "implementation": {
       "status": "APPROVED",
       "hashes": {
-        "todo/__init__.py": "6ebe0c7af0cad3e846632d298f457c9f0f4dcb3b0e3502574c27c5863a6a04f9",
-        "todo/app.py": "7c1cb851c7986597a5fc53bf7642140aa7ee5abdf75713aed60d044ca0a4981a",
-        "todo/cli.py": "8376c8201af807d301a6176e5e2b6f287a2f5a170b6fbabaecebe6a23d80606e",
-        "tests/test_todo.py": "3635427ca920959547d9f3d004908192c5c51fd310137c6887a20afaffc7c47f"
+        "todo/__init__.py": "36479f5a8b789679f55ac3a3ab3f6f359b30def95290067a3bbf0d755f0e796a",
+        "todo/app.py": "c505cdb51aefe42c83234dcbcbb23f1111834ad2154189a1d7bacee6ce94992b",
+        "todo/cli.py": "963e381e6af19311e2e4322b76358e55260ae47633086c6dd564b6825f6a8f86",
+        "tests/test_todo.py": "48da55b1d477ae4bcd6c6fb817fdb4cd557b4d482d8be084caf2d9256c791480"
       },
       "approvedBy": "Asad Khan",
-      "approvedAt": "2026-10-05T13:04:47.063442+00:00",
+      "approvedAt": "2026-10-21T20:30:31.297150+00:00",
       "rejectionReason": null
     },
     "review": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/review.md": "bbf45b3edc96ecf8684d183b1fc783959b7cbc6025ee86c0a6ca127bf8392158"
+        "artifacts/review.md": "c6882495145b819a1ebcfca2314866db6520566c2a8d6fc19c26ed31c359a972"
       },
       "approvedBy": "Asad Khan",
-      "approvedAt": "2026-10-05T13:09:10.997720+00:00",
+      "approvedAt": "2026-10-21T20:34:20.429368+00:00",
       "rejectionReason": null
     },
     "verify": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/verify.md": "a8fd73557bf214ffa4d3201f6e86aadd39c5f542f5a91f22d8c3b55dfde76cfe"
+        "artifacts/verify.md": "5313749f406af25c71b91d7eebe7f2d8277e2dae2625a096b3557a26752991a1"
       },
-      "approvedBy": "Asad Khan",
-      "approvedAt": "2026-10-05T13:18:49.695099+00:00",
+      "approvedBy": "Asad khan",
+      "approvedAt": "2026-10-21T20:39:23.123169+00:00",
       "rejectionReason": null
     },
     "pr": {
       "status": "APPROVED",
       "hashes": {
-        "artifacts/pr.md": "1599d4698e05426a69864e66aa79c1a810c0c5c55d20f042688969b61e5212e9",
-        "CHANGELOG.md": "228612b53d82d42d789cdb99288452c356ab3ae5b59a7b848d1366821b971ce0"
+        "artifacts/pr.md": "c3b69098717a6266882c61115cf63c9fa93d45766d1f9f6819cbbe90b6464c35",
+        "CHANGELOG.md": "8359a137197fe2d80a56bf900802297e28e220b54c3a67f7622225a97eaecbbb"
       },
       "approvedBy": "Asad Khan",
-      "approvedAt": "2026-10-05T13:32:48.741827+00:00",
+      "approvedAt": "2026-10-21T20:43:26.418246+00:00",
       "rejectionReason": null
     }
   }

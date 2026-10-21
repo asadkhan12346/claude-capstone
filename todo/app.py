@@ -1,227 +1,295 @@
-"""Todo domain operations and local JSON persistence."""
+"""
+todo.app — Application layer: all business logic and storage I/O.
 
-from __future__ import annotations
+Standard library only; requires Python 3.11+ (NFR-001).
+No network calls or secrets (NFR-003).
+"""
 
 import json
 import os
-import re
-import stat
-import tempfile
-from dataclasses import dataclass
-from pathlib import Path
+import pathlib
 from typing import Any
 
 
-class TodoError(Exception):
-    """Base class for expected Todo application errors."""
+class StorageError(Exception):
+    """Raised by load() and save() on unrecoverable storage errors (F-04)."""
 
 
-class EmptyTitleError(TodoError):
-    """A task title is empty after surrounding whitespace is removed."""
+# ---------------------------------------------------------------------------
+# Storage layer (FR-016, FR-017, NFR-002, F-02, F-04)
+# ---------------------------------------------------------------------------
 
 
-class InvalidTitleError(TodoError):
-    """A task title is not text."""
+def load(path: pathlib.Path) -> dict:
+    """
+    Load task data from *path* (FR-016, FR-017, NFR-002, F-04).
+
+    - Missing file          → returns fresh ``{"next_id": 1, "tasks": []}`` (FR-017).
+    - Empty / whitespace    → returns fresh ``{"next_id": 1, "tasks": []}`` (FR-017).
+    - Valid JSON            → returns the parsed dict.
+    - Malformed JSON        → raises :exc:`StorageError` (F-04).
+    - Unexpected OSError    → raises :exc:`StorageError` (F-04).
+
+    The file is read with UTF-8 encoding (NFR-002).
+    A fresh dict is returned each time to prevent accidental mutation of shared state.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return {"next_id": 1, "tasks": []}
+    except OSError as exc:
+        raise StorageError(str(exc)) from exc
+
+    if not text.strip():
+        return {"next_id": 1, "tasks": []}
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise StorageError(
+            f"Storage file contains malformed JSON: {path}"
+        ) from exc
 
 
-class TaskNotFoundError(TodoError):
-    """A requested task ID is invalid or does not exist."""
+def save(path: pathlib.Path, data: dict) -> None:
+    """
+    Write *data* to *path* atomically via a temp file + ``os.replace()`` (F-02, NFR-002).
 
-    def __init__(self, task_id: str) -> None:
-        self.task_id = task_id
-        super().__init__(task_id)
+    Steps:
+    1. Ensure parent directory exists.
+    2. Write to ``<path>.tmp``.
+    3. Atomically rename to *path* with ``os.replace()``.
 
-
-class StorageError(TodoError):
-    """Task storage could not be read or written."""
-
-
-class CorruptStorageError(TodoError):
-    """Task storage has invalid JSON or an invalid persisted schema."""
-
-
-@dataclass(frozen=True)
-class Task:
-    """One persisted task."""
-
-    id: int
-    title: str
-    status: str
+    Raises :exc:`StorageError` on any :exc:`OSError`; the temp file is cleaned up.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = pathlib.Path(str(path) + ".tmp")
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, path)
+    except OSError as exc:
+        tmp_path.unlink(missing_ok=True)
+        raise StorageError(str(exc)) from exc
 
 
-class TodoApp:
-    """Manage tasks stored in a JSON file in the current directory."""
+# ---------------------------------------------------------------------------
+# Business logic — task operations
+# ---------------------------------------------------------------------------
 
-    def __init__(self, storage_path: str | Path | None = None) -> None:
-        self.storage_path = Path(storage_path) if storage_path is not None else Path.cwd() / "tasks.json"
 
-    @staticmethod
-    def _task_id(value: object) -> int:
-        if type(value) is int and value > 0:
-            return value
-        if isinstance(value, str) and re.fullmatch(r"[0-9]+", value):
-            try:
-                task_id = int(value)
-            except ValueError as exc:
-                raise TaskNotFoundError(value) from exc
-            if task_id > 0:
-                return task_id
-        raise TaskNotFoundError(str(value))
+def create_task(
+    storage_path: pathlib.Path,
+    title: str,
+    description: str = "",
+) -> dict:
+    """
+    Create a new task (FR-001, FR-002, FR-013, FR-014, FR-015).
 
-    @staticmethod
-    def _task_title(value: object) -> str:
-        if not isinstance(value, str):
-            raise InvalidTitleError("Task title must be text.")
-        title = value.strip()
-        if not title:
-            raise EmptyTitleError("Task title must not be empty.")
-        return title
+    The title is stripped of surrounding whitespace; an empty or whitespace-only
+    title is rejected before any storage access (FR-013).
+    Duplicate titles are permitted (FR-014).
+    The ``next_id`` counter is read, used, and incremented atomically (FR-015).
 
-    def add_task(self, title: str) -> Task:
-        cleaned_title = self._task_title(title)
-        next_id, tasks = self._load_state()
-        created = Task(next_id, cleaned_title, "open")
-        self._save_state(next_id + 1, [*tasks, created])
-        return created
+    Returns ``{"success": bool, "message": str, "task": dict | None}``.
+    """
+    stripped_title = title.strip()
+    if not stripped_title:
+        return {"success": False, "message": "Title cannot be empty.", "task": None}
 
-    def list_tasks(self) -> list[Task]:
-        _, tasks = self._load_state()
-        return list(tasks)
+    try:
+        data = load(storage_path)
+        task_id: int = data["next_id"]
+        task: dict[str, Any] = {
+            "id": task_id,
+            "title": stripped_title,
+            "description": description,
+            "status": "pending",
+        }
+        data["tasks"].append(task)
+        data["next_id"] += 1
+        save(storage_path, data)
+    except StorageError as exc:
+        return {"success": False, "message": str(exc), "task": None}
 
-    def complete_task(self, task_id: str | int) -> tuple[Task, bool]:
-        requested_id = self._task_id(task_id)
-        next_id, tasks = self._load_state()
-        for index, task in enumerate(tasks):
-            if task.id == requested_id:
-                if task.status == "done":
-                    return task, False
-                completed = Task(task.id, task.title, "done")
-                updated_tasks = list(tasks)
-                updated_tasks[index] = completed
-                self._save_state(next_id, updated_tasks)
-                return completed, True
-        raise TaskNotFoundError(str(task_id))
+    return {
+        "success": True,
+        "message": f"Task {task_id} created: '{stripped_title}'.",
+        "task": task,
+    }
 
-    def reopen_task(self, task_id: str | int) -> tuple[Task, bool]:
-        requested_id = self._task_id(task_id)
-        next_id, tasks = self._load_state()
-        for index, task in enumerate(tasks):
-            if task.id == requested_id:
-                if task.status == "open":
-                    return task, False
-                reopened = Task(task.id, task.title, "open")
-                updated_tasks = list(tasks)
-                updated_tasks[index] = reopened
-                self._save_state(next_id, updated_tasks)
-                return reopened, True
-        raise TaskNotFoundError(str(task_id))
 
-    def delete_task(self, task_id: str | int) -> Task:
-        requested_id = self._task_id(task_id)
-        next_id, tasks = self._load_state()
-        for index, task in enumerate(tasks):
-            if task.id == requested_id:
-                self._save_state(next_id, tasks[:index] + tasks[index + 1 :])
-                return task
-        raise TaskNotFoundError(str(task_id))
+def list_tasks(
+    storage_path: pathlib.Path,
+    status_filter: str | None = None,
+) -> dict:
+    """
+    Return all tasks in creation order with an optional status filter (FR-003, FR-004, FR-005, F-06).
 
-    def _load_state(self) -> tuple[int, list[Task]]:
-        try:
-            raw = self.storage_path.read_bytes()
-        except FileNotFoundError:
-            return 1, []
-        except OSError as exc:
-            raise StorageError("Task storage could not be read.") from exc
+    Returns ``{"success": bool, "message": str, "tasks": list[dict]}``.
+    The ``"tasks"`` key is always present and always a ``list`` (F-06).
+    """
+    try:
+        data = load(storage_path)
+    except StorageError as exc:
+        return {"success": False, "message": str(exc), "tasks": []}
 
-        if not raw:
-            return 1, []
+    tasks: list[dict] = list(data["tasks"])
 
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise CorruptStorageError("Task storage is corrupt.") from exc
-        return self._validate_payload(payload)
+    if status_filter is not None:
+        tasks = [t for t in tasks if t["status"] == status_filter]
 
-    @staticmethod
-    def _validate_payload(payload: Any) -> tuple[int, list[Task]]:
-        if not isinstance(payload, dict) or set(payload) != {"next_id", "tasks"}:
-            raise CorruptStorageError("Task storage has an invalid structure.")
+    if not tasks:
+        return {"success": True, "message": "No tasks found.", "tasks": []}
 
-        next_id = payload["next_id"]
-        records = payload["tasks"]
-        if type(next_id) is not int or next_id < 1 or not isinstance(records, list):
-            raise CorruptStorageError("Task storage has invalid field types.")
+    return {
+        "success": True,
+        "message": f"{len(tasks)} task(s) found.",
+        "tasks": tasks,
+    }
 
-        tasks: list[Task] = []
-        seen_ids: set[int] = set()
-        for record in records:
-            if not isinstance(record, dict) or set(record) != {"id", "title", "status"}:
-                raise CorruptStorageError("Task storage has an invalid task record.")
-            task_id = record["id"]
-            title = record["title"]
-            status = record["status"]
-            if (
-                type(task_id) is not int
-                or task_id < 1
-                or task_id in seen_ids
-                or not isinstance(title, str)
-                or not isinstance(status, str)
-                or status not in {"open", "done"}
-            ):
-                raise CorruptStorageError("Task storage has an invalid task record.")
-            seen_ids.add(task_id)
-            tasks.append(Task(task_id, title, status))
 
-        if next_id <= max(seen_ids, default=0):
-            raise CorruptStorageError("Task storage next_id is inconsistent.")
-        return next_id, tasks
+def update_task(
+    storage_path: pathlib.Path,
+    task_id: int,
+    title: str | None = None,
+    description: str | None = None,
+) -> dict:
+    """
+    Update title and/or description of an existing task (FR-006, FR-012, FR-013, F-03).
 
-    def _save_state(self, next_id: int, tasks: list[Task]) -> None:
-        destination = self.storage_path
-        try:
-            try:
-                existing_mode: int | None = stat.S_IMODE(destination.stat().st_mode)
-            except FileNotFoundError:
-                existing_mode = None
-        except OSError as exc:
-            raise StorageError("Task storage mode could not be read.") from exc
+    ``None`` for *title* or *description* means "do not change this field" (F-03).
+    An empty string is a valid description value (F-03).
+    The task's ``id`` and ``status`` are never modified by this function (FR-006).
 
-        temporary_name: str | None = None
-        open_descriptor: int | None = None
-        try:
-            open_descriptor, temporary_name = tempfile.mkstemp(
-                prefix=f".{destination.name}.", dir=destination.parent
-            )
-            with os.fdopen(open_descriptor, "w", encoding="utf-8", newline="\n") as stream:
-                open_descriptor = None
-                json.dump(
-                    {
-                        "next_id": next_id,
-                        "tasks": [
-                            {"id": task.id, "title": task.title, "status": task.status}
-                            for task in tasks
-                        ],
-                    },
-                    stream,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-                stream.write("\n")
-                stream.flush()
-                os.fsync(stream.fileno())
-            if existing_mode is not None:
-                os.chmod(temporary_name, existing_mode)
-            os.replace(temporary_name, destination)
-        except (OSError, UnicodeError, TypeError, ValueError) as exc:
-            raise StorageError("Task storage could not be written.") from exc
-        finally:
-            if open_descriptor is not None:
-                try:
-                    os.close(open_descriptor)
-                except OSError:
-                    pass
-            if temporary_name is not None and os.path.exists(temporary_name):
-                try:
-                    os.unlink(temporary_name)
-                except OSError:
-                    pass
+    Returns ``{"success": bool, "message": str}``.
+    """
+    if title is None and description is None:
+        return {
+            "success": False,
+            "message": "At least one of title or description must be provided.",
+        }
+
+    stripped_title: str | None = None
+    if title is not None:
+        stripped_title = title.strip()
+        if not stripped_title:
+            return {"success": False, "message": "Title cannot be empty."}
+
+    try:
+        data = load(storage_path)
+        task: dict | None = next(
+            (t for t in data["tasks"] if t["id"] == task_id), None
+        )
+        if task is None:
+            return {"success": False, "message": f"Task {task_id} not found."}
+
+        if stripped_title is not None:
+            task["title"] = stripped_title
+        if description is not None:
+            task["description"] = description
+
+        save(storage_path, data)
+    except StorageError as exc:
+        return {"success": False, "message": str(exc)}
+
+    return {"success": True, "message": f"Task {task_id} updated."}
+
+
+def delete_task(
+    storage_path: pathlib.Path,
+    task_id: int,
+) -> dict:
+    """
+    Remove a task by ID from storage (FR-007, FR-012).
+
+    The ``next_id`` counter is not decremented; IDs are never reused (FR-015).
+
+    Returns ``{"success": bool, "message": str}``.
+    """
+    try:
+        data = load(storage_path)
+        task: dict | None = next(
+            (t for t in data["tasks"] if t["id"] == task_id), None
+        )
+        if task is None:
+            return {"success": False, "message": f"Task {task_id} not found."}
+
+        data["tasks"] = [t for t in data["tasks"] if t["id"] != task_id]
+        save(storage_path, data)
+    except StorageError as exc:
+        return {"success": False, "message": str(exc)}
+
+    return {"success": True, "message": f"Task {task_id} deleted."}
+
+
+def mark_completed(
+    storage_path: pathlib.Path,
+    task_id: int,
+) -> dict:
+    """
+    Set task status to ``"completed"`` (FR-008, FR-009, FR-012).
+
+    If the task is already completed, returns an informational result without
+    writing to storage (FR-009, idempotent no-op).
+
+    Returns ``{"success": bool, "message": str}``; the idempotent case also
+    includes ``"already_set": True``.
+    """
+    try:
+        data = load(storage_path)
+        task: dict | None = next(
+            (t for t in data["tasks"] if t["id"] == task_id), None
+        )
+        if task is None:
+            return {"success": False, "message": f"Task {task_id} not found."}
+
+        if task["status"] == "completed":
+            return {
+                "success": True,
+                "message": f"Task {task_id} is already completed.",
+                "already_set": True,
+            }
+
+        task["status"] = "completed"
+        save(storage_path, data)
+    except StorageError as exc:
+        return {"success": False, "message": str(exc)}
+
+    return {"success": True, "message": f"Task {task_id} marked as completed."}
+
+
+def mark_pending(
+    storage_path: pathlib.Path,
+    task_id: int,
+) -> dict:
+    """
+    Set task status to ``"pending"`` (FR-010, FR-011, FR-012).
+
+    If the task is already pending, returns an informational result without
+    writing to storage (FR-011, idempotent no-op).
+
+    Returns ``{"success": bool, "message": str}``; the idempotent case also
+    includes ``"already_set": True``.
+    """
+    try:
+        data = load(storage_path)
+        task: dict | None = next(
+            (t for t in data["tasks"] if t["id"] == task_id), None
+        )
+        if task is None:
+            return {"success": False, "message": f"Task {task_id} not found."}
+
+        if task["status"] == "pending":
+            return {
+                "success": True,
+                "message": f"Task {task_id} is already pending.",
+                "already_set": True,
+            }
+
+        task["status"] = "pending"
+        save(storage_path, data)
+    except StorageError as exc:
+        return {"success": False, "message": str(exc)}
+
+    return {"success": True, "message": f"Task {task_id} marked as pending."}
