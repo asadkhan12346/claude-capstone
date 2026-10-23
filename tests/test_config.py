@@ -78,7 +78,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn("Bash", frontmatter(pr))
 
     def test_skills_and_hook_registration(self) -> None:
-        for skill in ("requirements", "verify", "pr"):
+        for skill in ("verify", "pr"):
             text = (ROOT / ".claude" / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(skill=skill):
                 self.assertRegex(frontmatter(text), rf"(?m)^name: {re.escape(skill)}$")

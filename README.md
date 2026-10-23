@@ -65,7 +65,7 @@ flowchart TB
 | verify | verify | `/verify` | `artifacts/verify.md` |
 | PR | pr | `/pr` | `artifacts/pr.md`, `CHANGELOG.md`, then optional Stage B |
 
-Each agent and command is under `.claude/agents/` and `.claude/commands/`. The requirements, verify, and PR methods are under `.claude/skills/`.
+Each agent and command is under `.claude/agents/` and `.claude/commands/`. Verification and PR methods are under `.claude/skills/`.
 
 ## Controls
 
@@ -85,7 +85,7 @@ Submit rules include defined FR/NFR IDs, no undefined references, and required p
 ├── .claude/commands/        # Eight slash commands
 ├── .claude/hooks/           # Guard and its operator notes
 ├── .claude/settings.json    # Hook registration and permissions
-├── .claude/skills/          # Requirements, verification, PR methods
+├── .claude/skills/          # Verification and PR methods
 ├── artifacts/               # .gitkeep now; phase outputs after live run
 ├── docs/CONTRACT.md         # Single source of truth
 ├── docs/RUNBOOK.md

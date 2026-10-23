@@ -64,8 +64,8 @@ def run_audit(root: Path = ROOT) -> int:
     _check("phase ownership does not overlap", len(owned) == len(set(owned)), failures)
     _check("eight agents exist", all((root / p["agent"]).is_file() for p in phases), failures)
     _check("eight prompts exist", all((root / p["prompt"]).is_file() for p in phases), failures)
-    skill_names = ["requirements", "verify", "pr"]
-    _check("three skills exist", all((root / ".claude" / "skills" / name / "SKILL.md").is_file() for name in skill_names), failures)
+    skill_names = ["verify", "pr"]
+    _check("two skills exist", all((root / ".claude" / "skills" / name / "SKILL.md").is_file() for name in skill_names), failures)
     _check("shared instructions exist", (root / "CLAUDE.md").is_file(), failures)
 
     try:
