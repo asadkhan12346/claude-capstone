@@ -12,11 +12,26 @@ Agent files (`.claude/agents/`) and slash commands (`.claude/commands/`) are Cla
 - Work only when your phase is ACTIVE and only in files it owns.
 - Submit with `python orchestrator.py submit <phase>` and stop for human approval.
 
-## Orchestration
-- The main session (slash command) is the orchestrator: it checks status, asks the human any clarifying questions, delegates to the phase agent, and runs submit.
-- Subagents execute phase work in isolation: they read their inputs, write their owned files, and return a short report. They never ask the human directly.
-- If a subagent returns questions instead of a completed artifact, the main session relays them to the human and re-invokes with the answers.
-- GitHub MCP is used only in PR Stage B (`mcp__github__create_pull_request`). No other phase uses GitHub MCP.
+## Orchestration — six-step delegation flow
+
+The preferred entry point is `/run`. It implements this hierarchy:
+
+1. **User → Orchestrator Agent** (`orchestrator`): receives the task, runs `python orchestrator.py status`, and creates a delegation plan.
+2. **Orchestrator → Execution Agent**: routes to the active phase's agent (`requirements`, `architecture`, …, `pr`) via the Agent tool.
+3. **Execution Agent → Orchestrator**: returns files written, test output, errors, and whether submit was already run.
+4. **Orchestrator → Specialized Subagents** (when needed): e.g., a read-only test runner after implementation, or a verify-pass check before PR Stage A.
+5. **Subagents → Orchestrator**: return findings; orchestrator consolidates.
+6. **Orchestrator → User**: reports phase result, files changed, subagent findings, approval gate instruction, and any unresolved issues.
+
+**Rules for the orchestrator:**
+- Never delegate to a phase that is not ACTIVE.
+- Human approval gates are preserved — stop after submit, print the exact instruction.
+- Never run `approve`, `reject`, or `reopen`.
+- Delegate specialized subagents only when genuinely useful; avoid unnecessary delegation.
+- Delegate downward only — never back to the calling session or laterally.
+- The existing individual phase commands (`/requirements`, `/architecture`, etc.) remain available for direct delegation without the orchestrator layer.
+
+GitHub MCP is used only in PR Stage B (`mcp__github__create_pull_request`). No other phase uses GitHub MCP.
 
 ## Requirements
 - Ask the human about ambiguities; never assume answers.
