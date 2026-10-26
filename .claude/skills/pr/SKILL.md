@@ -8,7 +8,7 @@ description: Prepare traceable release artifacts and follow a human-authorized G
 Proceed only when the PR phase is ACTIVE and verify says `Result: PASS`. Write `artifacts/pr.md` with Summary, What changed, Traceability, Test evidence, Risks, Rollback, and Reviewer checklist. Update `CHANGELOG.md` in Keep a Changelog format with Unreleased, Added, Changed, and Fixed. Submit and stop for human approval.
 
 ## Stage B: authorized Git sequence
-Proceed only in a later invocation after every phase is APPROVED and the human explicitly says `go`. Check `git rev-parse --show-toplevel`, `git remote -v`, and that the current branch is not main/master. Create `sdlc/<slug>` with at most 40 characters. Stage only `artifacts todo tests/test_todo.py CHANGELOG.md sdlc/state.json sdlc/audit.log.jsonl`; inspect `git diff --cached --name-only`; commit conventionally, push the feature branch, then run `gh pr create --title ... --body-file artifacts/pr.md`.
+Proceed only in a later invocation after every phase is APPROVED and the human explicitly says `go`. Check `git rev-parse --show-toplevel`, `git remote -v`, and that the current branch is not main/master. Create `sdlc/<slug>` with at most 40 characters. Stage only `artifacts/ notes/ tests/test_notes.py CHANGELOG.md sdlc/state.json sdlc/audit.log.jsonl`; inspect `git diff --cached --name-only`; commit conventionally, push the feature branch, then run `gh pr create --title ... --body-file artifacts/pr.md`.
 
 ## Safety rules
 Never use force push, `git add -A`, `git add .`, `--no-verify`, history rewriting, or push to main/master. Do not stage files outside the allowlist. Do not claim a push or PR succeeded without actual output. Stop on any command error; never retry with a bypass.

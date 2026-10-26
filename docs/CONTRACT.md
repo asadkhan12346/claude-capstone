@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository demonstrates a story-agnostic, eight-phase SDLC pipeline for one `user_story.md`. Each phase has a narrowly scoped Claude Code agent and command. A phase must be submitted and explicitly approved by a human before the next phase becomes active. The final phase prepares pull-request materials; opening a pull request is a separate, explicitly authorized action.
+This repository demonstrates a story-agnostic, eight-phase SDLC pipeline for one `user_story.md`. Each phase has a narrowly scoped Claude Code agent. Two slash commands cover all eight phases: `/run` routes phases 1–7 through the central orchestrator agent; `/pr` handles the two-stage pull-request phase. A phase must be submitted and explicitly approved by a human before the next phase becomes active. The final phase prepares pull-request materials; opening a pull request is a separate, explicitly authorized action.
 
 The pipeline's controls are demo-grade. The orchestrator validates state and artifact hashes, the PreToolUse hook blocks selected unsafe operations, and the agent instructions define scope. These controls do not replace branch protection, code review, or a trusted human operator.
 
@@ -10,13 +10,13 @@ The pipeline's controls are demo-grade. The orchestrator validates state and art
 
 | # | id | agent | prompt | owns |
 |---|----|----|----|----|
-| 1 | requirements | `.claude/agents/requirements.md` | `.claude/commands/requirements.md` | `artifacts/requirements.md` |
-| 2 | architecture | `.claude/agents/architecture.md` | `.claude/commands/architecture.md` | `artifacts/architecture.md` |
-| 3 | design-review | `.claude/agents/design-review.md` | `.claude/commands/design-review.md` | `artifacts/design-review.md` |
-| 4 | planning | `.claude/agents/planning.md` | `.claude/commands/planning.md` | `artifacts/implementation-plan.md` |
-| 5 | implementation | `.claude/agents/implementation.md` | `.claude/commands/implementation.md` | `todo/__init__.py`, `todo/app.py`, `todo/cli.py`, `tests/test_todo.py` |
-| 6 | review | `.claude/agents/review.md` | `.claude/commands/review.md` | `artifacts/review.md` |
-| 7 | verify | `.claude/agents/verify.md` | `.claude/commands/verify.md` | `artifacts/verify.md` |
+| 1 | requirements | `.claude/agents/requirements.md` | `.claude/commands/run.md` | `artifacts/requirements.md` |
+| 2 | architecture | `.claude/agents/architecture.md` | `.claude/commands/run.md` | `artifacts/architecture.md` |
+| 3 | design-review | `.claude/agents/design-review.md` | `.claude/commands/run.md` | `artifacts/design-review.md` |
+| 4 | planning | `.claude/agents/planning.md` | `.claude/commands/run.md` | `artifacts/implementation-plan.md` |
+| 5 | implementation | `.claude/agents/implementation.md` | `.claude/commands/run.md` | `notes/__init__.py`, `notes/app.py`, `notes/cli.py`, `tests/test_notes.py` |
+| 6 | review | `.claude/agents/review.md` | `.claude/commands/run.md` | `artifacts/review.md` |
+| 7 | verify | `.claude/agents/verify.md` | `.claude/commands/run.md` | `artifacts/verify.md` |
 | 8 | pr | `.claude/agents/pr.md` | `.claude/commands/pr.md` | `artifacts/pr.md`, `CHANGELOG.md` |
 
 `artifacts/requirements.md`, the eight phase outputs, the phase IDs, and their sequence are fixed. The pipeline does not encode the sample story's requirements; only implementation ownership names the sample app files.
@@ -35,7 +35,7 @@ The following paths are protected from phase writes: `sdlc/state.json`, `sdlc/au
 
 ## Orchestrator CLI
 
-Run `python orchestrator.py status [--json]` to inspect state, `python orchestrator.py next` for the next prompt, and `python orchestrator.py submit <phase>` to submit the active phase. A human uses `python orchestrator.py approve <phase> --by <name>` after reviewing the output. `reject <phase> --reason <text>` returns a pending phase to active; `reopen <phase> --reason <text>` reopens an approved phase only when later outputs are absent. `check` verifies state, artifacts, hashes, and protected paths.
+Run `python orchestrator.py status [--json]` to inspect state, `python orchestrator.py next` for the next prompt, and `python orchestrator.py submit <phase>` to submit the active phase. Note: `next` displays `/<phase-id>` as the slash command (e.g. `/requirements`); with the consolidated command structure always use `/run` for phases 1–7 and `/pr` for phase 8 regardless of what `next` shows. A human uses `python orchestrator.py approve <phase> --by <name>` after reviewing the output. `reject <phase> --reason <text>` returns a pending phase to active; `reopen <phase> --reason <text>` reopens an approved phase only when later outputs are absent. `check` verifies state, artifacts, hashes, and protected paths.
 
 Exit code `0` means success, `1` means a rule violation, and `2` means a usage error. Interactive approval, rejection, and reopening require a TTY and an exact phase-ID confirmation. This TTY check is demo-grade and is not an authentication boundary.
 
