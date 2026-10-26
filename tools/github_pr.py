@@ -38,8 +38,8 @@ from typing import Sequence
 # ---------------------------------------------------------------------------
 _ALLOWED_PREFIXES: tuple[str, ...] = (
     "artifacts/",
-    "todo/",
-    "tests/test_todo.py",
+    "notes/",
+    "tests/test_notes.py",
     "CHANGELOG.md",
     "sdlc/state.json",
     "sdlc/audit.log.jsonl",

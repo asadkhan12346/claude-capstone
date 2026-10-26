@@ -1,3 +1,73 @@
+# Notes CLI
+
+A command-line notes manager written in pure Python (standard library only).  
+Notes are stored in a local JSON file (`notes.json`).
+
+## Setup
+
+Requirements: Python 3.11 or later.  No external dependencies.
+
+```
+# Verify your Python version
+python --version
+```
+
+The `notes.json` file is created automatically in the working directory on the
+first write.  No installation step is needed.
+
+## Usage
+
+The sole supported invocation is `python -m notes.cli`.
+
+### Create a note
+
+```
+python -m notes.cli create --title "Shopping list" --content "Milk, eggs, bread"
+```
+
+### List all notes
+
+```
+python -m notes.cli list
+```
+
+Prints each note in the format `[id] title: content`.  
+Prints `No notes found.` when the store is empty.
+
+### View a single note
+
+```
+python -m notes.cli view --id 1
+```
+
+### Update a note (full replace — both title and content are required)
+
+```
+python -m notes.cli update --id 1 --title "Grocery list" --content "Milk, eggs, bread, butter"
+```
+
+### Delete a note
+
+```
+python -m notes.cli delete --id 1
+```
+
+Prints `Note 1 deleted.` on success.
+
+## Error handling
+
+Errors (note not found, empty title, empty content, corrupt storage) are
+printed to stderr and the process exits with code 1.  No data is modified when
+an error occurs.
+
+## Running tests
+
+```
+python -m unittest discover -s tests -v
+```
+
+---
+
 # Agentic SDLC with Claude Code
 
 This repository demonstrates an eight-phase, human-gated software delivery pipeline driven by Claude Code custom agents. The input is one `user_story.md`; each phase reads approved predecessor outputs, writes only its declared files, submits them, and waits for a human decision.
@@ -56,16 +126,16 @@ flowchart TB
 
 | Phase | Agent | Command | Output |
 |---|---|---|---|
-| requirements | requirements | `/requirements` | `artifacts/requirements.md` |
-| architecture | architecture | `/architecture` | `artifacts/architecture.md` |
-| design review | design-review | `/design-review` | `artifacts/design-review.md` |
-| planning | planning | `/planning` | `artifacts/implementation-plan.md` |
-| implementation | implementation | `/implementation` | `todo/` and `tests/test_todo.py` |
-| review | review | `/review` | `artifacts/review.md` |
-| verify | verify | `/verify` | `artifacts/verify.md` |
+| requirements | requirements | `/run` | `artifacts/requirements.md` |
+| architecture | architecture | `/run` | `artifacts/architecture.md` |
+| design review | design-review | `/run` | `artifacts/design-review.md` |
+| planning | planning | `/run` | `artifacts/implementation-plan.md` |
+| implementation | implementation | `/run` | `notes/` and `tests/test_notes.py` |
+| review | review | `/run` | `artifacts/review.md` |
+| verify | verify | `/run` | `artifacts/verify.md` |
 | PR | pr | `/pr` | `artifacts/pr.md`, `CHANGELOG.md`, then optional Stage B |
 
-Each agent and command is under `.claude/agents/` and `.claude/commands/`. Verification and PR methods are under `.claude/skills/`.
+Eight execution agents live in `.claude/agents/`. Two slash commands handle all phases: `/run` routes phases 1–7 through the orchestrator agent; `/pr` manages the two-stage pull-request phase. Verification and PR methods are under `.claude/skills/`.
 
 ## Controls
 
@@ -82,7 +152,7 @@ Submit rules include defined FR/NFR IDs, no undefined references, and required p
 ```text
 .
 ├── .claude/agents/          # Eight phase agents
-├── .claude/commands/        # Eight slash commands
+├── .claude/commands/        # Two slash commands: /run and /pr
 ├── .claude/hooks/           # Guard and its operator notes
 ├── .claude/settings.json    # Hook registration and permissions
 ├── .claude/skills/          # Verification and PR methods

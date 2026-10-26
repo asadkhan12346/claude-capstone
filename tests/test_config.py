@@ -96,6 +96,27 @@ class ConfigurationTests(unittest.TestCase):
                 for owned in phase["owns"]:
                     self.assertIn(f"`{owned}`", contract)
 
+    def test_commands_directory_has_exactly_two_files(self) -> None:
+        """Regression: no per-phase command files should be re-introduced."""
+        commands = sorted((ROOT / ".claude" / "commands").iterdir())
+        self.assertEqual(
+            len(commands), 2,
+            f"expected 2 command files, found: {[c.name for c in commands]}",
+        )
+        self.assertEqual({c.name for c in commands}, {"run.md", "pr.md"})
+
+    def test_phases_use_consolidated_commands(self) -> None:
+        """Phases 1–7 reference run.md; phase 8 references pr.md."""
+        for phase in self.phases:
+            with self.subTest(phase=phase["id"]):
+                expected = ".claude/commands/pr.md" if phase["id"] == "pr" else ".claude/commands/run.md"
+                self.assertEqual(phase["prompt"], expected)
+
+    def test_orchestrator_agent_has_agent_tool(self) -> None:
+        """The orchestrator agent must declare the Agent tool to delegate to subagents."""
+        orch = (ROOT / ".claude" / "agents" / "orchestrator.md").read_text(encoding="utf-8")
+        self.assertRegex(frontmatter(orch), r"(?m)^tools: .+\bAgent\b")
+
 
 if __name__ == "__main__":
     unittest.main()

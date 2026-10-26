@@ -2,210 +2,191 @@
 
 ## Overview
 
-The system is a personal todo-list command-line application implemented in pure Python 3.11+ with no third-party dependencies. It is structured as a two-layer package (`todo/`) with a thin CLI presentation layer and an application logic layer that owns all state transitions and storage I/O. A single JSON file on the local filesystem provides persistence.
+The Notes CLI is a three-module Python package (`notes/`) backed by a single local JSON file (`notes.json`). A thin CLI layer translates subcommands into calls to an application layer that owns all domain logic and storage I/O. There is no network surface, no external dependency, and no state outside the JSON file and the process's stdout/stderr.
 
-The contract (phase 5) lists exactly four implementation files: `todo/__init__.py`, `todo/app.py`, `todo/cli.py`, and `tests/test_todo.py`. All architectural decisions stay within those boundaries.
+All seven functional requirements (FR-001 – FR-007) and all six non-functional requirements (NFR-001 – NFR-006) are satisfied within the four files owned by the implementation phase:
+`notes/__init__.py`, `notes/app.py`, `notes/cli.py`, `tests/test_notes.py`.
 
 ---
 
 ## Components and responsibilities
 
-### `todo/__init__.py` — Package initializer
-- Marks the `todo` directory as a Python package.
-- Optionally re-exports the public API surface of `todo/app.py` to simplify import paths for tests.
-- Contains no business logic.
+### `notes/__init__.py`
+- Package marker; exposes `NoteError`, `NoteNotFoundError`, and `ValidationError` at the package level so tests and external callers can import them without coupling to internal module paths.
+- No business logic.
 
-### `todo/app.py` — Application layer
-This module is the authoritative home for all business logic and storage I/O.
+### `notes/app.py`
+Owns all domain logic and all file I/O. Divided into two layers internally:
 
-Responsibilities:
-- **StorageManager** (logical grouping within the module): reads and writes the JSON file; handles the missing-file and empty-file cases (FR-017); enforces UTF-8 encoding (NFR-002); exposes `load(path) -> dict` and `save(path, data) -> None`.
-- **Task operations** (one callable per operation group):
-  - `create_task(storage_path, title, description)` — FR-001, FR-002, FR-013, FR-014, FR-015
-  - `list_tasks(storage_path, status_filter)` — FR-003, FR-004, FR-005
-  - `update_task(storage_path, task_id, title, description)` — FR-006, FR-012, FR-013
-  - `delete_task(storage_path, task_id)` — FR-007, FR-012
-  - `mark_completed(storage_path, task_id)` — FR-008, FR-009, FR-012
-  - `mark_pending(storage_path, task_id)` — FR-010, FR-011, FR-012
-- **Input validation**: whitespace-stripping and empty-title rejection (FR-013) happens inside each write operation before any storage read.
-- **Return contract**: every callable returns a result object (a plain `dict` or named tuple) containing at minimum a boolean `success` flag, a string `message`, and (where applicable) the affected task dict. No printing occurs in this layer; this is the primary testability seam (NFR-004).
-- **ID counter management**: the `next_id` field in the JSON data is read, used, and incremented atomically within each `create_task` call (FR-015, FR-016).
-- **No network calls, no secrets** (NFR-003).
+**Storage helpers** (private, not part of the public contract):
+- `_load(storage_path: str) -> dict` — reads `notes.json`; returns `{"next_id": 1, "notes": []}` if the file does not exist (NFR-001).
+- `_save(data: dict, storage_path: str) -> None` — atomically writes the data dict to `notes.json`; creates the file on first call (NFR-001).
 
-### `todo/cli.py` — CLI entry point and presentation layer
-Responsibilities:
-- Defines the `main()` entry point invoked by `python -m todo` or a console-script.
-- Uses `argparse` (standard library) to parse the command and its arguments.
-- Resolves the storage file path (default: `todo.json` in the current working directory; the path is passed down — never hardcoded inside `app.py`).
-- Calls the appropriate `app.py` function and receives its result dict.
-- Prints the `message` field to `stdout` for successes and informational no-ops (FR-009, FR-011) or to `stderr` for errors (FR-012, FR-013).
-- Sets the process exit code: `0` for success and informational no-ops, `1` for error conditions.
-- Contains no business logic; all validation and state decisions live in `app.py`.
+**Public application functions** (called by `cli.py` and by tests):
+- `create_note(title: str, content: str, storage_path: str = "notes.json") -> dict` — validates inputs (FR-007, NFR-005), assigns `next_id`, increments it, persists, returns the new note dict (FR-001, NFR-003).
+- `list_notes(storage_path: str = "notes.json") -> list[dict]` — loads and returns all notes; empty list when none exist (FR-002).
+- `get_note(note_id: int, storage_path: str = "notes.json") -> dict` — returns matching note; raises `NoteNotFoundError` if absent (FR-003, FR-006, NFR-005).
+- `update_note(note_id: int, title: str, content: str, storage_path: str = "notes.json") -> dict` — validates inputs (FR-007), finds note (FR-006), performs full replace, persists, returns updated dict (FR-004, NFR-005).
+- `delete_note(note_id: int, storage_path: str = "notes.json") -> None` — finds note (FR-006), removes it from the list, persists; `next_id` is not decremented (FR-005, NFR-003).
 
-### `tests/test_todo.py` — Automated test suite
-Responsibilities:
-- Uses `unittest` exclusively (NFR-004).
-- Each test class or method name cites the FR/NFR ID it exercises (NFR-004).
-- Uses `tempfile.TemporaryDirectory` to create isolated storage paths; never modifies the user's working directory (NFR-004).
-- Calls `app.py` functions directly (bypassing the CLI) to test logic in isolation.
-- Also tests the CLI via `subprocess` or `argparse`-level invocation for integration-level coverage.
+**Exception hierarchy** (defined in `app.py`, re-exported from `__init__.py`):
+- `NoteError(Exception)` — base class for all domain errors.
+- `NoteNotFoundError(NoteError)` — note ID absent (FR-006).
+- `ValidationError(NoteError)` — empty title or content (FR-007).
+
+### `notes/cli.py`
+- Defines `main() -> None` as the entry point; invoked via `python -m notes.cli` or a `console_scripts` entry point.
+- Uses `argparse` with one top-level parser and five subparsers (NFR-002):
+
+| Subcommand | Arguments | App function called |
+|------------|-----------|---------------------|
+| `create`   | `--title TEXT`, `--content TEXT` | `create_note` |
+| `list`     | _(none)_  | `list_notes` |
+| `view`     | `--id INT` | `get_note` |
+| `update`   | `--id INT`, `--title TEXT`, `--content TEXT` | `update_note` |
+| `delete`   | `--id INT` | `delete_note` |
+
+- On success, prints a human-readable summary to stdout.
+- Catches `NoteError` subclasses, prints the exception message to stderr, and exits with code 1 (NFR-005).
+- Prints an empty-list indication when `list_notes` returns `[]` (FR-002).
+
+### `tests/test_notes.py`
+- `unittest.TestCase` subclass; each test method creates an isolated temporary file via `tempfile.NamedTemporaryFile` so tests never share state.
+- Covers FR-001 through FR-007 explicitly; test method names embed the FR IDs (NFR-004).
+- Does not test CLI formatting; tests call application functions directly.
 
 ---
 
 ## Data model and persistence
 
-### JSON schema
-
-```json
+### Note object (in-memory and on-disk)
+```
 {
-  "next_id": 3,
-  "tasks": [
-    {
-      "id": 1,
-      "title": "Buy milk",
-      "description": "",
-      "status": "pending"
-    },
-    {
-      "id": 2,
-      "title": "Read book",
-      "description": "Chapter 5",
-      "status": "completed"
-    }
-  ]
+  "id":      <int>   -- unique, auto-increment, never reused (NFR-003)
+  "title":   <str>   -- non-empty (FR-001, FR-007)
+  "content": <str>   -- non-empty (FR-001, FR-007)
 }
 ```
 
-| Field | Type | Notes |
-|---|---|---|
-| `next_id` | integer ≥ 1 | The ID that will be assigned to the next created task. Never decremented. Persists across restarts (FR-015). |
-| `tasks` | array | Ordered list of task objects; creation order is preserved by append semantics (FR-003). |
-| `tasks[].id` | integer | Unique, positive, auto-incremented, never reused (FR-015). |
-| `tasks[].title` | string | Non-empty after trimming (FR-013). Stored trimmed (FR-001, FR-006). |
-| `tasks[].description` | string | Defaults to `""` when omitted (FR-002). |
-| `tasks[].status` | `"pending"` or `"completed"` | Only these two values are valid (constraints). |
+### `notes.json` file schema
+```
+{
+  "next_id": <int>,       -- next ID to assign; starts at 1; only ever increments (NFR-003)
+  "notes":   [ <note>, ... ]  -- ordered list of note objects (FR-002)
+}
+```
 
-### Storage file location
-- Default filename: `todo.json`, resolved relative to the current working directory at runtime.
-- The path is accepted as a parameter by every `app.py` function, enabling tests to substitute a temporary path without monkey-patching (NFR-004).
+- File is created automatically on first write (NFR-001).
+- Path is `notes.json` in the working directory by default; overridable via the `storage_path` parameter (used in tests).
+- An absent file is treated as empty state — `_load` returns `{"next_id": 1, "notes": []}` — rather than an error (NFR-001).
+- `next_id` persists across process restarts, guaranteeing ID uniqueness even after deletions (NFR-003).
 
-### Missing / empty file handling
-- If the file does not exist: treat as `{"next_id": 1, "tasks": []}` (FR-017).
-- If the file exists but is empty or contains only whitespace: treat as `{"next_id": 1, "tasks": []}` (FR-017).
-- If the file exists but contains malformed JSON: surface an error message (FR-018) and do not overwrite; this is an unrecoverable state the user must resolve manually.
-
-### Write strategy
-- Load the current data, apply the in-memory mutation, then write back atomically.
-- No partial-write concern is defined for concurrent access (constraint: no concurrent-writer guarantee).
+### Auto-increment ID algorithm
+1. `_load` reads `next_id` from the file (or defaults to 1).
+2. `create_note` sets `new_note["id"] = data["next_id"]` then increments `data["next_id"]`.
+3. `_save` writes the updated `next_id` atomically with the rest of the data.
+4. `delete_note` never modifies `next_id`.
 
 ---
 
 ## Control/data flow
 
-### Invocation path (happy path, create example)
-
-1. The user executes `python -m todo create "Buy milk"`.
-2. `todo/cli.py:main()` is called; `argparse` identifies the `create` sub-command and extracts `title="Buy milk"`, `description=""`.
-3. `cli.py` resolves `storage_path` (default `todo.json` in cwd) and calls `app.create_task(storage_path, "Buy milk", "")`.
-4. `app.create_task` validates the title (strip, check non-empty — FR-013).
-5. `app.create_task` calls `load(storage_path)` → returns `{"next_id": 1, "tasks": []}` (missing file case — FR-017).
-6. Assigns `id = next_id` (1), appends the new task record, increments `next_id` to 2.
-7. Calls `save(storage_path, data)` — writes UTF-8 JSON (NFR-002, FR-016).
-8. Returns `{"success": True, "message": "...", "task": {...}}`.
-9. `cli.py` prints the message to `stdout` and exits with code 0 (FR-018).
-
-### Error path (task not found)
-
-1. User executes an operation targeting a non-existent task ID (e.g., delete ID 99).
-2. `cli.py` calls the corresponding `app.py` function.
-3. `app.py` loads storage, searches for ID 99, finds nothing.
-4. Returns `{"success": False, "message": "Task 99 not found."}` — no write occurs (FR-012).
-5. `cli.py` prints the message to `stderr` and exits with code 1.
-
-### Idempotent no-op path (FR-009, FR-011)
-
-1. User marks an already-completed task as completed.
-2. `app.mark_completed` loads storage, finds the task, observes status is already `"completed"`.
-3. Returns `{"success": True, "message": "...", "already_set": True}` — no write occurs.
-4. `cli.py` prints the informational message to `stdout` and exits with code 0.
+```
+User (shell)
+    |
+    | python -m notes.cli <subcommand> [args]
+    v
+notes/cli.py  main()
+    |  argparse parses subcommand + arguments
+    |  calls app function with validated arg types
+    v
+notes/app.py  create_note / list_notes / get_note / update_note / delete_note
+    |  _load(storage_path) -> dict
+    |  applies domain logic; raises NoteNotFoundError or ValidationError on failure
+    |  _save(data, storage_path) on mutating operations
+    |  returns result dict / list / None
+    v
+notes/cli.py  formats result -> prints to stdout
+              catches NoteError -> prints message to stderr, sys.exit(1)
+    |
+    v
+User (shell)  reads stdout / checks exit code
+```
 
 ---
 
 ## Mermaid diagram
 
 ```mermaid
-flowchart TD
-    User["User (shell)"] -->|argv| CLI["todo/cli.py\n(argparse + main)"]
-    CLI -->|storage_path + args| APP["todo/app.py\n(business logic)"]
-    APP -->|load / save| FS["todo.json\n(JSON file, UTF-8)"]
-    APP -->|result dict| CLI
-    CLI -->|stdout / stderr + exit code| User
+graph TD
+    User["User (shell)"] -->|"python -m notes.cli <cmd>"| CLI["notes/cli.py\nmain()"]
+    CLI -->|"create_note(title, content)"| APP["notes/app.py"]
+    CLI -->|"list_notes()"| APP
+    CLI -->|"get_note(id)"| APP
+    CLI -->|"update_note(id, title, content)"| APP
+    CLI -->|"delete_note(id)"| APP
+    APP -->|"_load(path)"| FS["notes.json\n(local file)"]
+    APP -->|"_save(data, path)"| FS
+    APP -->|"NoteNotFoundError\nValidationError"| CLI
+    CLI -->|"success message"| STDOUT["stdout"]
+    CLI -->|"error message + exit 1"| STDERR["stderr"]
 
-    subgraph app.py internals
-        APP --> VAL["Input validation\n(FR-013)"]
-        APP --> OPS["Task operations\n(FR-001..FR-018)"]
-        APP --> STORE["StorageManager\nload / save\n(FR-016, FR-017, NFR-002)"]
-        APP --> IDCTR["ID counter\n(FR-015)"]
+    subgraph "notes package"
+        INIT["notes/__init__.py\n(re-exports exceptions)"]
+        APP
+        CLI
     end
 
-    TESTS["tests/test_todo.py\n(unittest, temp dirs)"] -->|direct calls| APP
+    subgraph "tests"
+        TESTS["tests/test_notes.py\n(unittest, tempfile)"]
+        TESTS -->|"direct function calls"| APP
+    end
 ```
 
 ---
 
 ## Decisions
 
-| Decision | Requirement IDs | Rationale |
-|---|---|---|
-| Two-module split: `app.py` (logic) and `cli.py` (presentation) | NFR-004, FR-018 | Separating I/O from logic creates a clean testability seam. Tests call `app.py` directly without invoking a subprocess, so every FR can be exercised with assertions on return values, not screen-scraped output. |
-| Storage path injected as a parameter to every `app.py` function | NFR-004, FR-016, FR-015 | Avoids global state and module-level constants, allowing tests to supply a `tempfile`-managed path without patching. |
-| `next_id` stored in the JSON file alongside tasks | FR-015, FR-016 | The requirement explicitly states the counter must persist across process restarts and IDs must never be reused after deletion. Deriving `next_id = max(ids) + 1` would violate the non-reuse guarantee after deletion; an explicit counter avoids this. |
-| `tasks` stored as a JSON array in creation/append order | FR-003, FR-005 | Ascending-ID order and creation order are equivalent when using append-only inserts (no sort needed on read). |
-| App layer returns a plain `dict` result; never prints | NFR-004, FR-018 | Printing belongs to the presentation layer. Returning structured data allows unit tests to assert on `success` and `message` without capturing `sys.stdout`. |
-| Standard library `argparse` for CLI parsing | NFR-001 | No third-party packages are permitted; `argparse` is sufficient for the required sub-commands and flags. |
-| UTF-8 encoding enforced in `save()` and `load()` | NFR-002 | Explicit `encoding="utf-8"` on `open()` calls guarantees non-ASCII titles and descriptions round-trip correctly regardless of the OS locale. |
-| Malformed JSON treated as an unrecoverable error, not silently reset | FR-017, FR-018 | FR-017 covers only the absent-or-empty-file case. Silently overwriting a corrupt (but present) file risks data loss; surfacing an error message respects FR-018 and leaves recovery to the user. |
-| No atomic file-swap or file-locking mechanism | Constraints | The requirements impose no concurrent-writer guarantee. A plain open-write-close cycle is sufficient and avoids platform-specific locking APIs. |
+| Decision | Choice | Rationale | FR/NFR |
+|----------|--------|-----------|--------|
+| Single `app.py` for storage + logic | No separate `storage.py` | Keeps file count within implementation ownership; two concerns are tightly coupled | NFR-001, NFR-004 |
+| `storage_path` parameter on every app function | Dependency injection via parameter | Allows tests to use temp files without patching globals | NFR-004 |
+| `next_id` field in JSON | Explicit persisted counter | Guarantees no ID reuse after deletion even across restarts; `max(id)+1` would fail on an empty list and could theoretically reuse IDs if the list were manipulated externally | NFR-003 |
+| `argparse` subparsers | One subparser per operation | Standard library; provides `--help` per subcommand and clear error messages for missing arguments | NFR-002, NFR-005 |
+| Exception hierarchy under `NoteError` | `NoteNotFoundError`, `ValidationError` | CLI can catch the base class for uniform handling; callers can catch specific subtypes for finer control | FR-006, FR-007, NFR-005 |
+| Tests call app functions directly | No CLI subprocess in tests | Faster, no shell dependency, easier to assert return values and exceptions | NFR-004 |
+| Full-replace update semantics | Both fields mandatory | Matches the constraint from Human answer 4; prevents accidental partial updates | FR-004 |
 
 ---
 
 ## Error handling
 
-| Condition | Location detected | Response | Exit code |
-|---|---|---|---|
-| Title empty or whitespace-only | `app.py` (before storage read) | Return `success=False`, message; no storage write | 1 (via CLI) |
-| Task ID not found | `app.py` (after storage load) | Return `success=False`, message; no storage write | 1 (via CLI) |
-| Already completed (idempotent) | `app.py` | Return `success=True`, informational message; no write | 0 (via CLI) |
-| Already pending (idempotent) | `app.py` | Return `success=True`, informational message; no write | 0 (via CLI) |
-| Storage file absent or empty | `app.py` `load()` | Return default empty-state dict; proceed normally | 0 |
-| Storage file contains malformed JSON | `app.py` `load()` | Return `success=False`, error message; no write | 1 (via CLI) |
-| Unexpected I/O error (permissions, disk full) | `app.py` `load()`/`save()` | Propagate as an error result with message | 1 (via CLI) |
+| Error condition | Where raised | Exception type | CLI behavior |
+|----------------|-------------|----------------|--------------|
+| Empty title or content on create/update (FR-007) | `app.py` validation at start of `create_note` / `update_note` | `ValidationError` | Print `"Title must not be empty"` or `"Content must not be empty"` to stderr; exit 1 |
+| Note ID not found on view/update/delete (FR-006) | `app.py` after scanning notes list | `NoteNotFoundError` | Print `"Note not found: <id>"` to stderr; exit 1 |
+| `notes.json` absent on read | `_load` returns default dict | _(no exception)_ | Normal flow; treated as empty storage |
+| `notes.json` corrupt JSON | `json.JSONDecodeError` propagates | _(stdlib)_ | CLI allows it to propagate; user sees Python traceback — out of scope per constraints |
+| No subcommand supplied | `argparse` | _(stdlib)_ | `argparse` prints help and exits 2 |
+
+Mutating operations (`create`, `update`, `delete`) write to disk only after all validation succeeds, ensuring no partial state is persisted on error (FR-006, FR-007).
 
 ---
 
 ## Requirement coverage table
 
-| ID | Component | Notes |
-|---|---|---|
-| FR-001 | `app.py` → `create_task` | Persists trimmed title, default description, `status="pending"`, assigned ID; returns success message |
-| FR-002 | `app.py` → `create_task` | `description` parameter defaults to `""` when caller omits it |
-| FR-003 | `app.py` → `list_tasks` | Returns tasks from `tasks` array in storage order (ascending ID) |
-| FR-004 | `app.py` → `list_tasks` | When `tasks` is empty, returns an informational no-tasks message |
-| FR-005 | `app.py` → `list_tasks` | Accepts optional `status_filter`; filters in-memory before returning |
-| FR-006 | `app.py` → `update_task` | Updates title and/or description; trims title; leaves `id` and `status` unchanged |
-| FR-007 | `app.py` → `delete_task` | Removes matching task from array; saves |
-| FR-008 | `app.py` → `mark_completed` | Sets `status="completed"` for matching task |
-| FR-009 | `app.py` → `mark_completed` | Detects already-completed state; returns informational result without writing |
-| FR-010 | `app.py` → `mark_pending` | Sets `status="pending"` for matching task |
-| FR-011 | `app.py` → `mark_pending` | Detects already-pending state; returns informational result without writing |
-| FR-012 | `app.py` (all write operations) | ID lookup failure returns `success=False` result before any storage write |
-| FR-013 | `app.py` → `create_task`, `update_task` | Title stripped then checked non-empty; fails before storage read |
-| FR-014 | `app.py` → `create_task` | No uniqueness check on title; duplicates accepted |
-| FR-015 | `app.py` → `create_task`, `StorageManager` | `next_id` field in JSON; never decremented; persisted on every write |
-| FR-016 | `app.py` → `StorageManager` | All reads and writes go through `load()`/`save()` targeting the JSON file |
-| FR-017 | `app.py` → `StorageManager` `load()` | Absent or empty file returns default empty-state dict |
-| FR-018 | `app.py` (return messages) + `cli.py` (print) | Every operation returns a non-empty `message`; `cli.py` always prints it |
-| NFR-001 | Entire codebase | `argparse`, `json`, `os`, `tempfile`, `unittest` — all standard library |
-| NFR-002 | `app.py` → `StorageManager` `load()`/`save()` | `open(..., encoding="utf-8")` on all file handles |
-| NFR-003 | Entire codebase | No `urllib`, `socket`, `http`, `requests`, or credential fields anywhere |
-| NFR-004 | `app.py` (injectable path, result dicts) + `tests/test_todo.py` | Storage path is a parameter; tests use `tempfile`; each test cites an FR/NFR ID |
+| Requirement | Satisfied by |
+|-------------|-------------|
+| FR-001 Create note | `app.py::create_note`; `cli.py` `create` subcommand |
+| FR-002 View all notes | `app.py::list_notes`; `cli.py` `list` subcommand with empty-list indication |
+| FR-003 View note by ID | `app.py::get_note`; `cli.py` `view` subcommand |
+| FR-004 Update note | `app.py::update_note`; `cli.py` `update` subcommand |
+| FR-005 Delete note | `app.py::delete_note`; `cli.py` `delete` subcommand |
+| FR-006 Error on non-existent note | `NoteNotFoundError` raised in `get_note`, `update_note`, `delete_note`; caught in CLI |
+| FR-007 Invalid input rejection | `ValidationError` raised at top of `create_note`, `update_note`; caught in CLI |
+| NFR-001 JSON persistence | `_load` / `_save` in `app.py`; file auto-created; `next_id` survives restarts |
+| NFR-002 CLI interface | `argparse` subparsers in `cli.py`: `create`, `list`, `view`, `update`, `delete` |
+| NFR-003 Auto-increment IDs | `next_id` field in JSON; incremented on create, never decremented |
+| NFR-004 Automated tests | `tests/test_notes.py` with `unittest`; test IDs map to FR IDs |
+| NFR-005 Informative error messages | `NoteNotFoundError` and `ValidationError` carry descriptive messages; CLI prints to stderr |
+| NFR-006 README documentation | README (owned outside this phase) documents all CLI subcommands; architecture specifies subcommand names |

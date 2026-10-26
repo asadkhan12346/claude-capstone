@@ -20,8 +20,8 @@ class OrchestratorCliTests(unittest.TestCase):
         self.root = Path(self.temporary_directory.name)
         source_root = Path(orchestrator.__file__).resolve().parent
         shutil.copytree(source_root / "sdlc", self.root / "sdlc")
-        (self.root / ".github" / "hooks").mkdir(parents=True)
-        (self.root / "hooks").mkdir()
+        (self.root / ".claude" / "hooks").mkdir(parents=True)
+        (self.root / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
         (self.root / "artifacts").mkdir()
         (self.root / "orchestrator.py").write_text("protected\n", encoding="utf-8")
 
@@ -159,6 +159,19 @@ class OrchestratorCliTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 2)
         self.assertIn("usage:", error_output.getvalue())
+
+    def test_second_submit_raises_rule_violation(self) -> None:
+        """AWAITING_APPROVAL phase cannot be submitted again; orchestrator must check status first."""
+        orchestrator.init_state(self.root)
+        self.write_artifacts("requirements")
+        orchestrator.submit(self.root, "requirements")
+        state = orchestrator.load_state(self.root)
+        self.assertEqual(state["phases"]["requirements"]["status"], "AWAITING_APPROVAL")
+        with self.assertRaisesRegex(orchestrator.RuleViolation, "AWAITING_APPROVAL"):
+            orchestrator.submit(self.root, "requirements")
+        # Status unchanged after failed second submit
+        state_after = orchestrator.load_state(self.root)
+        self.assertEqual(state_after["phases"]["requirements"]["status"], "AWAITING_APPROVAL")
 
 
 if __name__ == "__main__":

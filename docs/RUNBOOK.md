@@ -2,12 +2,14 @@
 
 The human performs every approval in a separate interactive terminal. Claude Code agents must stop after submitting a phase.
 
+Use `/run` for phases 1–7 and `/pr` for the PR phase (8). The orchestrator agent automatically routes `/run` to the correct execution agent for the active phase.
+
 ## 1. Clean pre-run check
 Run `python orchestrator.py status`, `python -m unittest discover -s tests -v`, `python -m compileall -q .`, and `python tools/audit_repo.py`.
-Expected: requirements is ACTIVE, seven phases are LOCKED, tests pass, compilation exits 0, and every audit check is PASS. Point: the audit is intentionally valid only before phase outputs exist.
+Expected: requirements is ACTIVE, seven phases are LOCKED, tests pass, compilation exits 0, and every audit check is PASS. Point: the audit is intentionally valid only before phase outputs exist. Note: `python orchestrator.py next` displays `/<phase-id>` as the command; always use `/run` (phases 1–7) or `/pr` (phase 8) regardless.
 
 ## 2. Requirements
-Run `python orchestrator.py next`, then invoke `/requirements` in Claude Code. Answer its single numbered clarification message.
+Run `python orchestrator.py next`, then invoke `/run` in Claude Code. Answer its single numbered clarification message.
 Expected: `artifacts/requirements.md` is submitted and the agent prints the awaiting-approval instruction. Point: do not let the agent guess requirement details.
 
 ## 3. Approve requirements
@@ -15,27 +17,27 @@ Review the artifact. In a human terminal run `python orchestrator.py approve req
 Expected: requirements becomes APPROVED and architecture becomes ACTIVE. Point: agent submission is not approval.
 
 ## 4. Architecture
-Run `python orchestrator.py next`, then `/architecture`.
+Run `python orchestrator.py next`, then `/run`.
 Expected: a component design, coverage table, and Mermaid diagram are submitted. Point: architecture reads only approved requirements.
 
 ## 5. Design review
-After approving architecture, run `/design-review`.
+After approving architecture, run `/run`.
 Expected: findings, alternatives, security/usability reviews, and a final verdict. Point: on REVISE, either reject the review or remove later outputs and reopen architecture; do not silently accept a failing verdict.
 
 ## 6. Planning
-After approving design review, run `/planning`.
+After approving design review, run `/run`.
 Expected: ordered tasks with files, requirement IDs, and checkable done-when criteria. Point: unresolved High/Med findings require a human decision.
 
 ## 7. Implementation
-After approving planning, run `/implementation`.
+After approving planning, run `/run`.
 Expected: only the four implementation-owned files are changed, with requirement-tagged tests. Point: implementation stops if the approved plan is inconsistent.
 
 ## 8. Review
-After approving implementation, run `/review`.
+After approving implementation, run `/run`.
 Expected: read-only findings, traceability for every requirement, plan adherence, and actual unittest/compileall evidence. Point: the reviewer does not fix its findings.
 
 ## 9. Verification
-After approving review, run `/verify`.
+After approving review, run `/run`.
 Expected: each requirement has an expected result, a real command/output block, and PASS/FAIL. Point: never approve `Result: FAIL`.
 
 ## 10. PR Stage A
